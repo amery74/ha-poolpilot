@@ -1,0 +1,38 @@
+{
+  "config": {
+    "step": {
+      "user": {"title": "Pool Pilot", "description": "Configuration générale de la piscine.", "data": {"pool_name": "Nom", "volume_m3": "Volume", "pool_type": "Traitement", "surface_type": "Revêtement"}},
+      "entities": {"title": "Entités Home Assistant", "description": "Sélectionne les capteurs et commandes déjà existants.", "data": {"temp_entity": "Température eau", "ph_entity": "pH", "orp_entity": "RedOx / ORP", "fc_entity": "Chlore libre", "ta_entity": "Alcalinité", "ch_entity": "Dureté calcium", "cya_entity": "Stabilisant CYA", "salt_entity": "Sel", "pump_switch": "Commande pompe", "heatpump_entity": "Pompe à chaleur", "weather_entity": "Météo", "forecast_temp_entity": "Température prévue", "cover_entity": "Couverture / volet"}}
+    }
+  },
+  "options": {"step": {"init": {"title": "Réglages Pool Pilot", "data": {"target_ph": "pH cible", "target_fc": "Chlore libre cible", "filtering_mode": "Mode filtration", "filter_coef": "Coefficient filtration", "min_filter_hours": "Filtration minimum", "max_filter_hours": "Filtration maximum", "heat_pump_priority": "Priorité PAC", "free_chlorine_mode": "Utiliser le chlore libre plutôt que RedOx"}}}},
+  "entity": {
+    "sensor": {
+      "water_temperature": {"name": "Température eau"},
+      "recommended_filter_hours": {"name": "Durée filtration recommandée"},
+      "weather_factor": {"name": "Facteur météo"},
+      "chemistry_status": {"name": "État chimie"},
+      "bathing_status": {"name": "État baignade"},
+      "action_summary": {"name": "Actions recommandées"},
+      "ph": {"name": "pH"},
+      "orp": {"name": "RedOx"},
+      "free_chlorine": {"name": "Chlore libre"}
+    },
+    "number": {
+      "target_ph": {"name": "pH cible"},
+      "target_fc": {"name": "Chlore libre cible"},
+      "filter_coef": {"name": "Coefficient filtration"},
+      "min_filter_hours": {"name": "Filtration minimum"},
+      "max_filter_hours": {"name": "Filtration maximum"}
+    },
+    "button": {
+      "confirm_chlorine": {"name": "Valider ajout chlore"},
+      "confirm_ph_minus": {"name": "Valider pH-"},
+      "confirm_ph_plus": {"name": "Valider pH+"},
+      "confirm_backwash": {"name": "Valider lavage filtre"},
+      "start_pump": {"name": "Démarrer pompe"},
+      "stop_pump": {"name": "Arrêter pompe"}
+    },
+    "select": {"filtering_mode": {"name": "Mode filtration"}}
+  }
+}
