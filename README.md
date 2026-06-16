@@ -1,54 +1,59 @@
-# Pool Pilot pour Home Assistant
+# Pool Pilot v0.2.0
 
-Pool Pilot est un prototype d'intégration custom qui agrège des entités déjà présentes dans Home Assistant pour piloter une piscine : Flipr/local, pompe de filtration, pompe à chaleur et météo.
+Prototype Home Assistant pour piscine : chimie, filtration, PAC et **Pool House**.
 
-## Fonctions incluses
+## Nouveau : Pool House et dosages
 
-- Configuration du volume en m³.
-- Sélection des entités existantes : température eau, pH, RedOx/ORP, chlore libre, pompe, PAC, météo, température prévue, couverture.
-- Capteurs calculés : durée de filtration recommandée, facteur météo, état chimie, état baignade, actions recommandées.
-- Réglages via entités `number` : pH cible, chlore cible, coefficient de filtration, min/max heures.
-- Sélecteur de mode filtration : `off`, `manual`, `auto`.
-- Boutons : démarrer/arrêter la pompe, confirmer chlore, pH-, pH+, lavage filtre.
+Ajoute tes produits via les services Home Assistant `pool_pilot.add_product`.
 
-## Installation manuelle
+### Exemple pH moins Cash Piscine
 
-1. Décompresse le ZIP.
-2. Copie `custom_components/pool_pilot` dans `/config/custom_components/pool_pilot`.
-3. Redémarre Home Assistant.
-4. Va dans **Paramètres > Appareils et services > Ajouter une intégration > Pool Pilot**.
-5. Sélectionne les entités existantes.
-
-## Notes importantes
-
-Ce dépôt est une base installable/prototype. Les actions sur la pompe utilisent `homeassistant.turn_on` et `homeassistant.turn_off` sur l'entité configurée. Pour une piscine réelle, ajoute toujours des sécurités matérielles indépendantes : débit, pression, niveau d'eau, asservissement PAC/pompe.
-
-## Exemple d'automation de notification
+Produit : 100 g pour 10 m³ afin de diminuer le pH de 0,1.
 
 ```yaml
-alias: Piscine - Alerte action recommandée
-trigger:
-  - platform: state
-    entity_id: sensor.piscine_actions_recommandees
-action:
-  - service: notify.mobile_app_mon_telephone
-    data:
-      title: Piscine
-      message: "{{ states('sensor.piscine_actions_recommandees') }}"
+service: pool_pilot.add_product
+data:
+  id: ph_minus_cash_5kg
+  name: pH moins Cash Piscine
+  category: ph_minus
+  dosage_quantity: 100
+  dosage_unit: g
+  volume_basis_m3: 10
+  effect_delta: 0.1
+  stock_quantity: 5000
+  stock_unit: g
 ```
 
-## Exemple d'automation PAC -> pompe
+Pour un bassin de 27 m³ avec pH 7,6 et cible 7,4, Pool Pilot recommande environ **540 g**.
+
+### Exemple galets / pastilles
+
+Produit : 5 pastilles pour 10 m³.
 
 ```yaml
-alias: Piscine - Sécurité PAC pompe
-trigger:
-  - platform: state
-    entity_id: climate.pac_piscine
-action:
-  - choose:
-      - conditions: "{{ is_state('climate.pac_piscine', 'heat') }}"
-        sequence:
-          - service: switch.turn_on
-            target:
-              entity_id: switch.pompe_piscine
+service: pool_pilot.add_product
+data:
+  id: pastilles_chlore_5_10m3
+  name: Pastilles chlore lent
+  category: chlorine
+  dosage_quantity: 5
+  dosage_unit: pastille
+  volume_basis_m3: 10
+  stock_quantity: 80
+  stock_unit: pastille
 ```
+
+## Capteurs ajoutés
+
+- `sensor.pool_pilot_recommandation_produit` : recommandation principale avec quantité.
+- `sensor.pool_pilot_pool_house` : inventaire en attributs.
+- `sensor.pool_pilot_actions` : attribut `recommendations` exploitable par la carte Lovelace.
+
+## Services
+
+- `pool_pilot.add_product`
+- `pool_pilot.set_product_stock`
+- `pool_pilot.confirm_product_added`
+- `pool_pilot.remove_product`
+
+La confirmation décrémente le stock lorsque l’unité de dosage et l’unité de stock sont identiques.

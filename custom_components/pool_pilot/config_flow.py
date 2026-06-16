@@ -12,6 +12,27 @@ from homeassistant.helpers.selector import (
 )
 from .const import *
 
+TREATMENT_TYPE_OPTIONS = [
+    {"value": POOL_TYPE_CHLORINE, "label": "Chlore"},
+    {"value": POOL_TYPE_SALT, "label": "Électrolyse au sel"},
+    {"value": POOL_TYPE_BROMINE, "label": "Brome"},
+]
+
+SURFACE_TYPE_OPTIONS = [
+    {"value": "liner", "label": "Liner"},
+    {"value": "polyester", "label": "Coque polyester"},
+    {"value": "concrete", "label": "Béton"},
+    {"value": "tile", "label": "Carrelage"},
+    {"value": "painted", "label": "Peinture"},
+    {"value": "other", "label": "Autre"},
+]
+
+FILTERING_MODE_OPTIONS = [
+    {"value": "off", "label": "Arrêt"},
+    {"value": "manual", "label": "Manuel"},
+    {"value": "auto", "label": "Automatique"},
+]
+
 class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
     MINOR_VERSION = 0
@@ -33,8 +54,8 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="user", data_schema=vol.Schema({
             vol.Required(CONF_POOL_NAME, default="Piscine"): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_VOLUME_M3, default=50.0): NumberSelector(NumberSelectorConfig(min=1, max=500, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="m³")),
-            vol.Required(CONF_POOL_TYPE, default=POOL_TYPE_CHLORINE): SelectSelector(SelectSelectorConfig(options=POOL_TYPES, mode=SelectSelectorMode.DROPDOWN)),
-            vol.Required(CONF_SURFACE_TYPE, default="liner"): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPES, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_POOL_TYPE, default=POOL_TYPE_CHLORINE): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_SURFACE_TYPE, default="liner"): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
         }))
 
     async def async_step_entities(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -82,7 +103,7 @@ class PoolPilotOptionsFlow(OptionsFlow):
         return self.async_show_form(step_id="init", data_schema=vol.Schema({
             vol.Required(CONF_TARGET_PH, default=cur.get(CONF_TARGET_PH, DEFAULT_TARGET_PH)): NumberSelector(NumberSelectorConfig(min=6.8, max=8.0, step=0.1, mode=NumberSelectorMode.SLIDER)),
             vol.Required(CONF_TARGET_FC, default=cur.get(CONF_TARGET_FC, DEFAULT_TARGET_FC)): NumberSelector(NumberSelectorConfig(min=0.5, max=10, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="ppm")),
-            vol.Required(CONF_FILTERING_MODE, default=cur.get(CONF_FILTERING_MODE, "auto")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODES, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_FILTERING_MODE, default=cur.get(CONF_FILTERING_MODE, "auto")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_FILTER_COEF, default=cur.get(CONF_FILTER_COEF, DEFAULT_FILTER_COEF)): NumberSelector(NumberSelectorConfig(min=1.0, max=4.0, step=0.1, mode=NumberSelectorMode.BOX)),
             vol.Required(CONF_MIN_FILTER_HOURS, default=cur.get(CONF_MIN_FILTER_HOURS, DEFAULT_MIN_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
             vol.Required(CONF_MAX_FILTER_HOURS, default=cur.get(CONF_MAX_FILTER_HOURS, DEFAULT_MAX_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=1, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
