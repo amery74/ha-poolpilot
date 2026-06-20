@@ -1,13 +1,13 @@
 """Coordinator for Pool Pilot."""
 from __future__ import annotations
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging, math, uuid, json
 from typing import Any, Callable
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
 from homeassistant.core import HomeAssistant, Event, callback
-from homeassistant.helpers.event import async_track_state_change_event, EventStateChangedData
+from homeassistant.helpers.event import async_track_state_change_event, EventStateChangedData, async_call_later, async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -137,6 +137,13 @@ class PoolPilotData:
     products: list[ChemicalProduct] = field(default_factory=list)
     last_product_confirmed: str | None = None
     last_updated: datetime | None = None
+    auto_filter_active: bool = False
+    auto_filter_end: datetime | None = None
+    auto_filter_remaining_hours: float | None = None
+    auto_schedule_enabled: bool = False
+    auto_schedule_status: str = "disabled"
+    auto_schedule_windows: list[dict[str, str]] = field(default_factory=list)
+    auto_schedule_next_start: datetime | None = None
 
 class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
     config_entry: ConfigEntry
@@ -148,6 +155,12 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._last_product_confirmed: str | None = None
         self._store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY}_{entry.entry_id}")
         self.products: dict[str, ChemicalProduct] = {}
+        self._auto_filter_unsub: Callable[[], None] | None = None
+        self._auto_filter_start: datetime | None = None
+        self._auto_filter_end: datetime | None = None
+        self._auto_schedule_enabled: bool = False
+        self._auto_schedule_unsub: Callable[[], None] | None = None
+        self._auto_schedule_owns_pump: bool = False
 
     @property
     def pool_name(self) -> str:
@@ -158,6 +171,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
     async def async_setup(self) -> None:
         await self.async_load_products()
+        await self.async_load_scheduler_state()
         entities = [self.config_entry.data.get(k) for k in (
             CONF_TEMP_ENTITY, CONF_PH_ENTITY, CONF_ORP_ENTITY, CONF_FC_ENTITY, CONF_TA_ENTITY,
             CONF_CH_ENTITY, CONF_CYA_ENTITY, CONF_SALT_ENTITY, CONF_PUMP_SWITCH, CONF_HEATPUMP_ENTITY,
@@ -165,18 +179,28 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         entities = [e for e in entities if e]
         if entities:
             self._unsubscribe = async_track_state_change_event(self.hass, entities, self._async_state_changed)
+        self._auto_schedule_unsub = async_track_time_interval(self.hass, self._async_auto_schedule_tick, timedelta(minutes=1))
         await self.async_request_refresh()
+        await self._async_auto_schedule_tick(dt_util.now())
 
     def async_shutdown(self) -> None:
         if self._unsubscribe:
             self._unsubscribe(); self._unsubscribe = None
+        if self._auto_filter_unsub:
+            self._auto_filter_unsub(); self._auto_filter_unsub = None
+        if self._auto_schedule_unsub:
+            self._auto_schedule_unsub(); self._auto_schedule_unsub = None
 
     async def async_load_products(self) -> None:
         stored = await self._store.async_load() or {}
         self.products = {p.id: p for p in [ChemicalProduct.from_dict(x) for x in stored.get("products", [])]}
 
+    async def async_load_scheduler_state(self) -> None:
+        stored = await self._store.async_load() or {}
+        self._auto_schedule_enabled = bool(stored.get("auto_schedule_enabled", False))
+
     async def async_save_products(self) -> None:
-        await self._store.async_save({"products": [p.as_dict() for p in self.products.values()]})
+        await self._store.async_save({"products": [p.as_dict() for p in self.products.values()], "auto_schedule_enabled": self._auto_schedule_enabled})
         self.async_set_updated_data(self._calculate())
 
     async def async_add_product(self, **data: Any) -> str:
@@ -217,6 +241,152 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         else:
             self._last_product_confirmed = f"{category} à {dt_util.now().strftime('%Y-%m-%d %H:%M')}"
             self.async_set_updated_data(self._calculate())
+
+
+    async def async_set_auto_schedule_enabled(self, enabled: bool) -> None:
+        """Enable or disable the daily recommended filtration planner."""
+        self._auto_schedule_enabled = bool(enabled)
+        if not self._auto_schedule_enabled:
+            await self._async_scheduler_turn_pump_off_if_owned()
+        await self.async_save_products()
+        await self._async_auto_schedule_tick(dt_util.now())
+
+    async def async_toggle_auto_schedule(self) -> None:
+        await self.async_set_auto_schedule_enabled(not self._auto_schedule_enabled)
+
+    def _today_schedule_windows(self) -> list[tuple[datetime, datetime]]:
+        """Return today's planned filtration windows.
+
+        The planner centers filtration around the warmest part of the day. By
+        default, this is 15:00 local time. If the daily duration is long, it is
+        split into two cycles to avoid an oversized continuous block.
+        """
+        d = self.config_entry.data
+        temp = self._temp_c(d.get(CONF_TEMP_ENTITY))
+        forecast = self._temp_c(d.get(CONF_FORECAST_TEMP_ENTITY))
+        cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
+        calc_hours, _factor = self._filter_hours(temp, forecast, cover)
+        hours = float(calc_hours or 0)
+        if hours <= 0:
+            return []
+        hours = min(24.0, max(0.1, hours))
+        now = dt_util.now()
+        today = now.date()
+        center = dt_util.as_local(datetime.combine(today, datetime.min.time())).replace(hour=15, minute=0, second=0, microsecond=0)
+        day_start = center.replace(hour=7, minute=0)
+        day_end = center.replace(hour=23, minute=0)
+        if hours <= 12:
+            start = center - timedelta(hours=hours / 2)
+            end = start + timedelta(hours=hours)
+            if start < day_start:
+                start = day_start
+                end = start + timedelta(hours=hours)
+            if end > day_end:
+                end = day_end
+                start = end - timedelta(hours=hours)
+            return [(start, end)]
+        # Long duration: morning + afternoon/evening, with a short pause around
+        # the hottest moment. This improves mixing without forcing a 20h block.
+        first = min(7.0, round(hours * 0.45, 2))
+        second = max(0.1, hours - first)
+        morning_start = day_start
+        morning_end = morning_start + timedelta(hours=first)
+        afternoon_start = center
+        afternoon_end = afternoon_start + timedelta(hours=second)
+        if afternoon_end > day_end:
+            afternoon_end = day_end
+            afternoon_start = max(morning_end + timedelta(minutes=30), afternoon_end - timedelta(hours=second))
+        return [(morning_start, morning_end), (afternoon_start, afternoon_end)]
+
+    def _schedule_windows_as_dicts(self) -> list[dict[str, str]]:
+        return [{"start": s.isoformat(), "end": e.isoformat(), "label": f"{s.strftime('%H:%M')} → {e.strftime('%H:%M')}"} for s, e in self._today_schedule_windows()]
+
+    def _next_schedule_start(self) -> datetime | None:
+        now = dt_util.now()
+        for start, end in self._today_schedule_windows():
+            if now < start:
+                return start
+            if start <= now < end:
+                return now
+        # Tomorrow's first window, recalculated with the same duration.
+        tomorrow = now + timedelta(days=1)
+        old_now = now
+        # Build simply from today's first window plus 1 day to keep deterministic.
+        windows = self._today_schedule_windows()
+        return windows[0][0] + timedelta(days=1) if windows else None
+
+    async def _async_scheduler_turn_pump_off_if_owned(self) -> None:
+        pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
+        if pump and self._auto_schedule_owns_pump:
+            await self.hass.services.async_call("homeassistant", "turn_off", {"entity_id": pump}, blocking=True)
+        self._auto_schedule_owns_pump = False
+
+    async def _async_auto_schedule_tick(self, now: datetime) -> None:
+        """Start/stop the configured pump according to the automatic plan."""
+        pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
+        if not pump:
+            return
+        if not self._auto_schedule_enabled:
+            self.async_set_updated_data(self._calculate())
+            return
+        now = dt_util.as_local(now)
+        in_window = any(start <= now < end for start, end in self._today_schedule_windows())
+        pump_is_on = self._is_on(pump)
+        if in_window and pump_is_on is not True:
+            await self.hass.services.async_call("homeassistant", "turn_on", {"entity_id": pump}, blocking=True)
+            self._auto_schedule_owns_pump = True
+        elif not in_window and self._auto_schedule_owns_pump:
+            await self.hass.services.async_call("homeassistant", "turn_off", {"entity_id": pump}, blocking=True)
+            self._auto_schedule_owns_pump = False
+        self.async_set_updated_data(self._calculate())
+
+
+    async def async_start_auto_filter(self, duration_hours: float | None = None) -> None:
+        """Start pump for the recommended filtration duration, then stop it automatically."""
+        pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
+        if not pump:
+            raise ValueError("Aucune entité pompe configurée")
+        data = self.data or self._calculate()
+        hours = float(duration_hours or data.recommended_filter_hours or 0)
+        min_h = float(self.option(CONF_MIN_FILTER_HOURS, DEFAULT_MIN_FILTER_HOURS))
+        max_h = float(self.option(CONF_MAX_FILTER_HOURS, DEFAULT_MAX_FILTER_HOURS))
+        hours = max(0.1, min(max_h, max(hours, min_h)))
+
+        if self._auto_filter_unsub:
+            self._auto_filter_unsub()
+            self._auto_filter_unsub = None
+
+        self._auto_filter_start = dt_util.now()
+        self._auto_filter_end = self._auto_filter_start + timedelta(hours=hours)
+        await self.hass.services.async_call("homeassistant", "turn_on", {"entity_id": pump}, blocking=True)
+
+        async def _finish(now: datetime) -> None:
+            self._auto_filter_unsub = None
+            self._auto_filter_start = None
+            self._auto_filter_end = None
+            await self.hass.services.async_call("homeassistant", "turn_off", {"entity_id": pump}, blocking=True)
+            await self.async_request_refresh()
+
+        self._auto_filter_unsub = async_call_later(self.hass, hours * 3600, _finish)
+        await self.async_request_refresh()
+
+    async def async_stop_auto_filter(self, turn_off: bool = True) -> None:
+        """Cancel automatic filtration and optionally stop the pump."""
+        if self._auto_filter_unsub:
+            self._auto_filter_unsub()
+            self._auto_filter_unsub = None
+        self._auto_filter_start = None
+        self._auto_filter_end = None
+        pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
+        if turn_off and pump:
+            await self.hass.services.async_call("homeassistant", "turn_off", {"entity_id": pump}, blocking=True)
+        await self.async_request_refresh()
+
+    def _auto_filter_remaining_hours(self) -> float | None:
+        if not self._auto_filter_end:
+            return None
+        remaining = (self._auto_filter_end - dt_util.now()).total_seconds() / 3600
+        return round(max(0.0, remaining), 2)
 
     @callback
     def _async_state_changed(self, event: Event[EventStateChangedData]) -> None:
@@ -377,4 +547,18 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         if hours is not None: actions.append(f"Filtration recommandée: {hours} h/j")
         actions.extend(alerts[:2])
         if hp_on and pump_on is False: actions.append("PAC active sans pompe détectée: sécurité à vérifier")
-        return PoolPilotData(temp, ph, orp, fc, ta, ch, cya, salt, forecast, pump_on, hp_on, cover, hours, weather_factor, chemistry_status, bathing, " · ".join(actions) if actions else "Aucune action", alerts, recs, list(self.products.values()), self._last_product_confirmed, dt_util.now())
+        
+        auto_remaining = self._auto_filter_remaining_hours()
+        auto_active = auto_remaining is not None and auto_remaining > 0
+        schedule_windows = self._schedule_windows_as_dicts() if self._auto_schedule_enabled else []
+        schedule_next = self._next_schedule_start() if self._auto_schedule_enabled else None
+        schedule_status = "enabled" if self._auto_schedule_enabled else "disabled"
+        if self._auto_schedule_enabled:
+            now = dt_util.now()
+            if any(dt_util.parse_datetime(w["start"]) <= now < dt_util.parse_datetime(w["end"]) for w in schedule_windows):
+                schedule_status = "running"
+            if schedule_windows:
+                actions.insert(0, "Planification filtration active: " + " / ".join(w["label"] for w in schedule_windows))
+        if auto_active:
+            actions.insert(0, f"Filtration auto en cours: {auto_remaining} h restantes")
+        return PoolPilotData(temp, ph, orp, fc, ta, ch, cya, salt, forecast, pump_on, hp_on, cover, hours, weather_factor, chemistry_status, bathing, " · ".join(actions) if actions else "Aucune action", alerts, recs, list(self.products.values()), self._last_product_confirmed, dt_util.now(), auto_active, self._auto_filter_end, auto_remaining, self._auto_schedule_enabled, schedule_status, schedule_windows, schedule_next)

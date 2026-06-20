@@ -1,9 +1,23 @@
-# Pool Pilot v0.2.4
+# Pool Pilot v0.3.0
 
-Correctifs pour le dashboard v0.14 :
+Version avec planification automatique de la filtration intégrée.
 
-- Service `pool_pilot.add_product` plus tolérant avec les champs envoyés par le Pool House.
-- `category` reste optionnel et accepte aussi `product_type`.
-- Conservation des métadonnées produit : marque, forme, poids unitaire, dissolution, stabilisant, lieu de traitement, dosage choc et dosage initial.
-- Capteur `sensor.*_pool_house` exposant `attributes.products`.
-- Boutons disponibles : `Valider action recommandée`, `Filtration auto recommandée`, `Démarrer pompe`, `Arrêter pompe`.
+## Nouveautés
+
+- Un seul équipement pompe est nécessaire : `CONF_PUMP_SWITCH` / entité pompe existante.
+- Nouveau switch Home Assistant : **Filtration auto planifiée**.
+- Pool Pilot calcule la durée quotidienne recommandée puis crée des créneaux.
+- Démarrage/arrêt automatique de la pompe pendant les créneaux.
+- Si la durée est longue, la filtration est découpée en deux cycles.
+- Services :
+  - `pool_pilot.enable_auto_schedule`
+  - `pool_pilot.disable_auto_schedule`
+  - `pool_pilot.toggle_auto_schedule`
+  - `pool_pilot.start_auto_filtration` reste disponible pour démarrage immédiat.
+
+## Logique de planning
+
+- Durée = durée recommandée calculée par Pool Pilot.
+- Durée <= 12h : un créneau centré autour de 15h.
+- Durée > 12h : deux créneaux, matin + après-midi/soir.
+- Pool Pilot n’éteint la pompe automatiquement que si c’est lui qui l’a allumée via le planning.

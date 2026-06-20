@@ -126,6 +126,16 @@
       },
       "alert_status": {
         "name": "Alerte Pool Pilot"
+      },
+      "auto_filter_remaining": {
+        "name": "Filtration auto restante"
+      },
+      "auto_filter_status": {
+        "name": "Statut filtration auto",
+        "state": {
+          "active": "En cours",
+          "idle": "Inactive"
+        }
       }
     },
     "number": {

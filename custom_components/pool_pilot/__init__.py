@@ -11,7 +11,7 @@ from .coordinator import PoolPilotCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
-PLATFORMS = [Platform.SENSOR, Platform.NUMBER, Platform.BUTTON, Platform.SELECT]
+PLATFORMS = [Platform.SENSOR, Platform.NUMBER, Platform.BUTTON, Platform.SELECT, Platform.SWITCH]
 
 type PoolPilotConfigEntry = ConfigEntry[PoolPilotCoordinator]
 
@@ -37,6 +37,7 @@ CONFIRM_SCHEMA = vol.Schema({
     vol.Optional("quantity"): vol.Any(None, vol.Coerce(float)),
 })
 REMOVE_SCHEMA = vol.Schema({vol.Required("product_id"): cv.string})
+START_AUTO_FILTER_SCHEMA = vol.Schema({vol.Optional("duration_hours"): vol.Coerce(float)})
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async def _coordinator() -> PoolPilotCoordinator:
@@ -61,10 +62,35 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         c = await _coordinator()
         await c.async_remove_product(str(call.data["product_id"]))
 
+    async def start_auto_filtration(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_start_auto_filter(call.data.get("duration_hours"))
+
+    async def stop_auto_filtration(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_stop_auto_filter(turn_off=True)
+
+    async def enable_auto_schedule(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_set_auto_schedule_enabled(True)
+
+    async def disable_auto_schedule(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_set_auto_schedule_enabled(False)
+
+    async def toggle_auto_schedule(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_toggle_auto_schedule()
+
     hass.services.async_register(DOMAIN, "add_product", add_product, schema=ADD_PRODUCT_SCHEMA)
     hass.services.async_register(DOMAIN, "set_product_stock", set_product_stock, schema=SET_STOCK_SCHEMA)
     hass.services.async_register(DOMAIN, "confirm_product_added", confirm_product_added, schema=CONFIRM_SCHEMA)
     hass.services.async_register(DOMAIN, "remove_product", remove_product, schema=REMOVE_SCHEMA)
+    hass.services.async_register(DOMAIN, "start_auto_filtration", start_auto_filtration, schema=START_AUTO_FILTER_SCHEMA)
+    hass.services.async_register(DOMAIN, "stop_auto_filtration", stop_auto_filtration)
+    hass.services.async_register(DOMAIN, "enable_auto_schedule", enable_auto_schedule)
+    hass.services.async_register(DOMAIN, "disable_auto_schedule", disable_auto_schedule)
+    hass.services.async_register(DOMAIN, "toggle_auto_schedule", toggle_auto_schedule)
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: PoolPilotConfigEntry) -> bool:
