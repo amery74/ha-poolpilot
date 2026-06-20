@@ -21,6 +21,8 @@ SENSORS = (
     PoolPilotSensorDescription(key="weather_factor", translation_key="weather_factor", state_class=SensorStateClass.MEASUREMENT, icon="mdi:weather-partly-cloudy", value_fn=lambda d: d.weather_factor),
     PoolPilotSensorDescription(key="chemistry_status", translation_key="chemistry_status", icon="mdi:flask", value_fn=lambda d: d.chemistry_status, attrs_fn=lambda d: {"alerts": d.alerts}),
     PoolPilotSensorDescription(key="bathing_status", translation_key="bathing_status", icon="mdi:pool", value_fn=lambda d: d.bathing_status),
+    
+    PoolPilotSensorDescription(key="alert_status", translation_key="alert_status", icon="mdi:alert-circle-outline", value_fn=lambda d: "Alerte" if (d.recommendations or d.alerts) else "Aucune alerte", attrs_fn=lambda d: {"alerts": d.alerts, "recommendations": [r.as_dict() for r in d.recommendations]}),
     PoolPilotSensorDescription(key="action_summary", translation_key="action_summary", icon="mdi:clipboard-list-outline", value_fn=lambda d: d.action_summary, attrs_fn=lambda d: {"last_product_confirmed": d.last_product_confirmed, "last_updated": d.last_updated.isoformat() if d.last_updated else None, "recommendations": [r.as_dict() for r in d.recommendations]}),
     PoolPilotSensorDescription(key="ph", translation_key="ph", icon="mdi:ph", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.ph),
     PoolPilotSensorDescription(key="orp", translation_key="orp", native_unit_of_measurement="mV", icon="mdi:chart-bell-curve", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.orp),

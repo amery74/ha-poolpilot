@@ -123,6 +123,9 @@
       },
       "pool_house": {
         "name": "Pool House"
+      },
+      "alert_status": {
+        "name": "Alerte Pool Pilot"
       }
     },
     "number": {
@@ -160,6 +163,12 @@
       },
       "stop_pump": {
         "name": "Arrêter pompe"
+      },
+      "confirm_current_action": {
+        "name": "Valider action recommandée"
+      },
+      "start_auto_filter": {
+        "name": "Filtration auto recommandée"
       }
     },
     "select": {

@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
-import logging, math, uuid
+import logging, math, uuid, json
 from typing import Any, Callable
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
@@ -36,7 +36,7 @@ class ChemicalProduct:
         return cls(
             id=str(data.get("id") or uuid.uuid4().hex[:10]),
             name=str(data.get("name") or "Produit"),
-            category=str(data.get("category") or "other"),
+            category=("algaecide" if str(data.get("category") or "other") == "anti_algae" else str(data.get("category") or "other")),
             dosage_quantity=float(data.get("dosage_quantity") or 0),
             dosage_unit=str(data.get("dosage_unit") or data.get("stock_unit") or "g"),
             volume_basis_m3=float(data.get("volume_basis_m3") or 10.0),
@@ -47,6 +47,14 @@ class ChemicalProduct:
         )
 
     def as_dict(self) -> dict[str, Any]:
+        extra: dict[str, Any] = {}
+        if self.notes:
+            try:
+                parsed = json.loads(self.notes)
+                if isinstance(parsed, dict):
+                    extra = parsed
+            except Exception:
+                extra = {"notes_text": self.notes}
         return {
             "id": self.id,
             "name": self.name,
@@ -58,6 +66,7 @@ class ChemicalProduct:
             "stock_quantity": self.stock_quantity,
             "stock_unit": self.stock_unit,
             "notes": self.notes,
+            **extra,
         }
 
 @dataclass

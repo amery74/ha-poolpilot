@@ -32,6 +32,8 @@ add_product:
               value: stabilizer
             - label: Anti-algues
               value: algaecide
+            - label: Hivernage
+              value: wintering
             - label: Sel
               value: salt
             - label: Autre
@@ -97,6 +99,14 @@ add_product:
             - pastille
             - galet
             - dose
+    brand:
+      name: Marque
+      selector:
+        text:
+    form:
+      name: Forme du produit
+      selector:
+        text:
     notes:
       name: Notes
       selector:
