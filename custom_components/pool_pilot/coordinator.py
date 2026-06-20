@@ -33,17 +33,36 @@ class ChemicalProduct:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ChemicalProduct":
+        raw_notes = data.get("notes")
+        notes_payload: dict[str, Any] = {}
+        if raw_notes:
+            try:
+                parsed = json.loads(raw_notes) if isinstance(raw_notes, str) else raw_notes
+                if isinstance(parsed, dict):
+                    notes_payload.update(parsed)
+                else:
+                    notes_payload["notes_text"] = str(raw_notes)
+            except Exception:
+                notes_payload["notes_text"] = str(raw_notes)
+        # Accepte aussi les champs envoyés directement par la carte Pool House.
+        for key in ("brand", "form", "unit_weight_g", "multifunction", "dissolution", "stabilized", "treatment_place", "shock_dose_amount", "initial_dose_amount"):
+            if data.get(key) not in (None, ""):
+                notes_payload[key] = data.get(key)
+        notes = json.dumps(notes_payload, ensure_ascii=False) if notes_payload else None
+        category = str(data.get("category") or data.get("product_type") or "other")
+        if category == "anti_algae":
+            category = "algaecide"
         return cls(
             id=str(data.get("id") or uuid.uuid4().hex[:10]),
             name=str(data.get("name") or "Produit"),
-            category=("algaecide" if str(data.get("category") or "other") == "anti_algae" else str(data.get("category") or "other")),
-            dosage_quantity=float(data.get("dosage_quantity") or 0),
-            dosage_unit=str(data.get("dosage_unit") or data.get("stock_unit") or "g"),
-            volume_basis_m3=float(data.get("volume_basis_m3") or 10.0),
+            category=category,
+            dosage_quantity=float(data.get("dosage_quantity") or data.get("normal_dose_amount") or 0),
+            dosage_unit=str(data.get("dosage_unit") or data.get("dose_unit") or data.get("stock_unit") or "g"),
+            volume_basis_m3=float(data.get("volume_basis_m3") or data.get("reference_volume_m3") or 10.0),
             effect_delta=float(data["effect_delta"]) if data.get("effect_delta") not in (None, "", 0) else None,
             stock_quantity=float(data["stock_quantity"]) if data.get("stock_quantity") not in (None, "") else None,
-            stock_unit=str(data.get("stock_unit") or data.get("dosage_unit") or "g"),
-            notes=data.get("notes"),
+            stock_unit=str(data.get("stock_unit") or data.get("unit") or data.get("dosage_unit") or "g"),
+            notes=notes,
         )
 
     def as_dict(self) -> dict[str, Any]:

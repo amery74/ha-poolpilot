@@ -14,7 +14,7 @@ add_product:
         text:
     category:
       name: Catégorie
-      required: true
+      required: false
       selector:
         select:
           options:

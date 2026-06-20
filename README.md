@@ -1,7 +1,9 @@
-# Pool Pilot v0.2.2
+# Pool Pilot v0.2.4
 
-Corrections pour le dashboard v0.12 :
-- service `pool_pilot.add_product` tolère les champs supplémentaires envoyés par le Pool House ;
-- catégories `anti_algae` / `wintering` supportées ;
-- le capteur `Pool House` expose les produits dans ses attributs `products` avec marque, forme, dosage et stock ;
-- entités utiles pour la carte : `sensor.*_alert_status`, `sensor.*_pool_house`, `button.*_confirm_current_action`, `button.*_start_auto_filter`.
+Correctifs pour le dashboard v0.14 :
+
+- Service `pool_pilot.add_product` plus tolérant avec les champs envoyés par le Pool House.
+- `category` reste optionnel et accepte aussi `product_type`.
+- Conservation des métadonnées produit : marque, forme, poids unitaire, dissolution, stabilisant, lieu de traitement, dosage choc et dosage initial.
+- Capteur `sensor.*_pool_house` exposant `attributes.products`.
+- Boutons disponibles : `Valider action recommandée`, `Filtration auto recommandée`, `Démarrer pompe`, `Arrêter pompe`.
