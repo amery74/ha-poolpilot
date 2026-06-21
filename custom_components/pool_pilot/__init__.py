@@ -27,6 +27,7 @@ ADD_PRODUCT_SCHEMA = vol.Schema({
     vol.Optional("stock_unit"): cv.string,
     vol.Optional("notes"): cv.string,
 }, extra=vol.ALLOW_EXTRA)
+UPDATE_PRODUCT_SCHEMA = ADD_PRODUCT_SCHEMA.extend({vol.Required("id"): cv.string}, extra=vol.ALLOW_EXTRA)
 SET_STOCK_SCHEMA = vol.Schema({
     vol.Required("product_id"): cv.string,
     vol.Required("stock_quantity"): vol.Coerce(float),
@@ -49,6 +50,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async def add_product(call: ServiceCall) -> None:
         c = await _coordinator()
         await c.async_add_product(**dict(call.data))
+
+    async def update_product(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_update_product(**dict(call.data))
 
     async def set_product_stock(call: ServiceCall) -> None:
         c = await _coordinator()
@@ -83,6 +88,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         await c.async_toggle_auto_schedule()
 
     hass.services.async_register(DOMAIN, "add_product", add_product, schema=ADD_PRODUCT_SCHEMA)
+    hass.services.async_register(DOMAIN, "update_product", update_product, schema=UPDATE_PRODUCT_SCHEMA)
     hass.services.async_register(DOMAIN, "set_product_stock", set_product_stock, schema=SET_STOCK_SCHEMA)
     hass.services.async_register(DOMAIN, "confirm_product_added", confirm_product_added, schema=CONFIRM_SCHEMA)
     hass.services.async_register(DOMAIN, "remove_product", remove_product, schema=REMOVE_SCHEMA)

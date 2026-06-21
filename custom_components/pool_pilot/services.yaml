@@ -112,6 +112,87 @@ add_product:
       selector:
         text:
 
+update_product:
+  name: Modifier un produit du Pool House
+  description: Modifie un produit chimique existant. Si l’identifiant n’existe pas encore, le produit est créé.
+  fields:
+    id:
+      name: Identifiant produit
+      required: true
+      selector:
+        text:
+    name:
+      name: Nom
+      required: true
+      selector:
+        text:
+    category:
+      name: Catégorie
+      selector:
+        select:
+          options:
+            - label: pH moins
+              value: ph_minus
+            - label: pH plus
+              value: ph_plus
+            - label: Chlore / désinfectant
+              value: chlorine
+            - label: Brome
+              value: bromine
+            - label: Anti-algues
+              value: algaecide
+            - label: Autre
+              value: other
+    dosage_quantity:
+      name: Quantité de dosage
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 0.1
+          mode: box
+    dosage_unit:
+      name: Unité de dosage
+      required: true
+      selector:
+        select:
+          options: [g, kg, ml, L, pastille, galet, dose]
+    volume_basis_m3:
+      name: Volume de référence
+      selector:
+        number:
+          min: 1
+          max: 200
+          step: 0.5
+          unit_of_measurement: m³
+          mode: box
+    effect_delta:
+      name: Effet de correction
+      selector:
+        number:
+          min: 0
+          max: 20
+          step: 0.01
+          mode: box
+    stock_quantity:
+      name: Quantité en stock
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 0.1
+          mode: box
+    stock_unit:
+      name: Unité du stock
+      selector:
+        select:
+          options: [g, kg, ml, L, pastille, galet, dose]
+    notes:
+      name: Notes
+      selector:
+        text:
+
 set_product_stock:
   name: Mettre à jour le stock d’un produit
   fields:

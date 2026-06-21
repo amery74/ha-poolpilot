@@ -209,6 +209,18 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         await self.async_save_products()
         return product.id
 
+    async def async_update_product(self, **data: Any) -> str:
+        """Update an existing Pool House product.
+
+        This is intentionally tolerant: if the product does not exist yet, it is
+        created with the supplied id. This allows the Lovelace editor pencil
+        button to use a single save action.
+        """
+        product = ChemicalProduct.from_dict(data)
+        self.products[product.id] = product
+        await self.async_save_products()
+        return product.id
+
     async def async_remove_product(self, product_id: str) -> None:
         self.products.pop(product_id, None)
         await self.async_save_products()
