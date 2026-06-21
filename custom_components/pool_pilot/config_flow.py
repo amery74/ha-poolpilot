@@ -93,20 +93,109 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
         }))
 
 class PoolPilotOptionsFlow(OptionsFlow):
+    """Options flow for Pool Pilot.
+
+    Home Assistant uses the options flow when the user clicks "Configurer" on
+    the integration. Earlier builds only exposed tuning values here, so entity
+    replacement (pump, heat pump, Flipr sensors, weather) could not be changed
+    safely and could raise a 500 error depending on the HA version.
+
+    This flow now edits both:
+    - config entry data: pool identity + linked HA entities;
+    - config entry options: targets and filtration behaviour.
+    """
+
     def __init__(self, config_entry: ConfigEntry) -> None:
         self.config_entry = config_entry
 
+    def _current(self, key: str, default: Any = None) -> Any:
+        return self.config_entry.options.get(key, self.config_entry.data.get(key, default))
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
-        cur = self.config_entry.options
+            data_keys = {
+                CONF_POOL_NAME,
+                CONF_VOLUME_M3,
+                CONF_POOL_TYPE,
+                CONF_SURFACE_TYPE,
+                CONF_TEMP_ENTITY,
+                CONF_PH_ENTITY,
+                CONF_ORP_ENTITY,
+                CONF_FC_ENTITY,
+                CONF_TA_ENTITY,
+                CONF_CH_ENTITY,
+                CONF_CYA_ENTITY,
+                CONF_SALT_ENTITY,
+                CONF_PUMP_SWITCH,
+                CONF_HEATPUMP_ENTITY,
+                CONF_WEATHER_ENTITY,
+                CONF_FORECAST_TEMP_ENTITY,
+                CONF_COVER_ENTITY,
+            }
+            option_keys = {
+                CONF_TARGET_PH,
+                CONF_TARGET_FC,
+                CONF_FILTERING_MODE,
+                CONF_FILTER_COEF,
+                CONF_MIN_FILTER_HOURS,
+                CONF_MAX_FILTER_HOURS,
+                CONF_HEAT_PUMP_PRIORITY,
+                CONF_FREE_CHLORINE_MODE,
+            }
+
+            # Keep existing values unless the user explicitly clears/selects a field.
+            new_data = dict(self.config_entry.data)
+            new_options = dict(self.config_entry.options)
+
+            for key, value in user_input.items():
+                if key in data_keys:
+                    if value in (None, ""):
+                        new_data.pop(key, None)
+                    else:
+                        new_data[key] = value
+                elif key in option_keys:
+                    new_options[key] = value
+
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                title=str(new_data.get(CONF_POOL_NAME, self.config_entry.title)),
+                data=new_data,
+                options=new_options,
+            )
+            return self.async_create_entry(title="", data=new_options)
+
+        sensor = EntitySelector(EntitySelectorConfig(domain="sensor"))
+        switch = EntitySelector(EntitySelectorConfig(domain=["switch", "input_boolean"]))
+        hp = EntitySelector(EntitySelectorConfig(domain=["climate", "switch", "water_heater"]))
+        weather = EntitySelector(EntitySelectorConfig(domain="weather"))
+        binary = EntitySelector(EntitySelectorConfig(domain=["binary_sensor", "input_boolean", "cover", "switch"]))
+
         return self.async_show_form(step_id="init", data_schema=vol.Schema({
-            vol.Required(CONF_TARGET_PH, default=cur.get(CONF_TARGET_PH, DEFAULT_TARGET_PH)): NumberSelector(NumberSelectorConfig(min=6.8, max=8.0, step=0.1, mode=NumberSelectorMode.SLIDER)),
-            vol.Required(CONF_TARGET_FC, default=cur.get(CONF_TARGET_FC, DEFAULT_TARGET_FC)): NumberSelector(NumberSelectorConfig(min=0.5, max=10, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="ppm")),
-            vol.Required(CONF_FILTERING_MODE, default=cur.get(CONF_FILTERING_MODE, "auto")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
-            vol.Required(CONF_FILTER_COEF, default=cur.get(CONF_FILTER_COEF, DEFAULT_FILTER_COEF)): NumberSelector(NumberSelectorConfig(min=1.0, max=4.0, step=0.1, mode=NumberSelectorMode.BOX)),
-            vol.Required(CONF_MIN_FILTER_HOURS, default=cur.get(CONF_MIN_FILTER_HOURS, DEFAULT_MIN_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
-            vol.Required(CONF_MAX_FILTER_HOURS, default=cur.get(CONF_MAX_FILTER_HOURS, DEFAULT_MAX_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=1, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
-            vol.Required(CONF_HEAT_PUMP_PRIORITY, default=cur.get(CONF_HEAT_PUMP_PRIORITY, True)): BooleanSelector(),
-            vol.Required(CONF_FREE_CHLORINE_MODE, default=cur.get(CONF_FREE_CHLORINE_MODE, DEFAULT_FREE_CHLORINE_MODE)): BooleanSelector(),
+            vol.Required(CONF_POOL_NAME, default=self._current(CONF_POOL_NAME, "Piscine")): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+            vol.Required(CONF_VOLUME_M3, default=self._current(CONF_VOLUME_M3, 50.0)): NumberSelector(NumberSelectorConfig(min=1, max=500, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="m³")),
+            vol.Required(CONF_POOL_TYPE, default=self._current(CONF_POOL_TYPE, POOL_TYPE_CHLORINE)): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_SURFACE_TYPE, default=self._current(CONF_SURFACE_TYPE, "liner")): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+
+            vol.Required(CONF_TEMP_ENTITY, default=self._current(CONF_TEMP_ENTITY)): sensor,
+            vol.Optional(CONF_PH_ENTITY, default=self._current(CONF_PH_ENTITY)): sensor,
+            vol.Optional(CONF_ORP_ENTITY, default=self._current(CONF_ORP_ENTITY)): sensor,
+            vol.Optional(CONF_FC_ENTITY, default=self._current(CONF_FC_ENTITY)): sensor,
+            vol.Optional(CONF_TA_ENTITY, default=self._current(CONF_TA_ENTITY)): sensor,
+            vol.Optional(CONF_CH_ENTITY, default=self._current(CONF_CH_ENTITY)): sensor,
+            vol.Optional(CONF_CYA_ENTITY, default=self._current(CONF_CYA_ENTITY)): sensor,
+            vol.Optional(CONF_SALT_ENTITY, default=self._current(CONF_SALT_ENTITY)): sensor,
+            vol.Optional(CONF_PUMP_SWITCH, default=self._current(CONF_PUMP_SWITCH)): switch,
+            vol.Optional(CONF_HEATPUMP_ENTITY, default=self._current(CONF_HEATPUMP_ENTITY)): hp,
+            vol.Optional(CONF_WEATHER_ENTITY, default=self._current(CONF_WEATHER_ENTITY)): weather,
+            vol.Optional(CONF_FORECAST_TEMP_ENTITY, default=self._current(CONF_FORECAST_TEMP_ENTITY)): sensor,
+            vol.Optional(CONF_COVER_ENTITY, default=self._current(CONF_COVER_ENTITY)): binary,
+
+            vol.Required(CONF_TARGET_PH, default=self._current(CONF_TARGET_PH, DEFAULT_TARGET_PH)): NumberSelector(NumberSelectorConfig(min=6.8, max=8.0, step=0.1, mode=NumberSelectorMode.SLIDER)),
+            vol.Required(CONF_TARGET_FC, default=self._current(CONF_TARGET_FC, DEFAULT_TARGET_FC)): NumberSelector(NumberSelectorConfig(min=0.5, max=10, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="ppm")),
+            vol.Required(CONF_FILTERING_MODE, default=self._current(CONF_FILTERING_MODE, "auto")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_FILTER_COEF, default=self._current(CONF_FILTER_COEF, DEFAULT_FILTER_COEF)): NumberSelector(NumberSelectorConfig(min=1.0, max=4.0, step=0.1, mode=NumberSelectorMode.BOX)),
+            vol.Required(CONF_MIN_FILTER_HOURS, default=self._current(CONF_MIN_FILTER_HOURS, DEFAULT_MIN_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
+            vol.Required(CONF_MAX_FILTER_HOURS, default=self._current(CONF_MAX_FILTER_HOURS, DEFAULT_MAX_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=1, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
+            vol.Required(CONF_HEAT_PUMP_PRIORITY, default=self._current(CONF_HEAT_PUMP_PRIORITY, True)): BooleanSelector(),
+            vol.Required(CONF_FREE_CHLORINE_MODE, default=self._current(CONF_FREE_CHLORINE_MODE, DEFAULT_FREE_CHLORINE_MODE)): BooleanSelector(),
         }))
