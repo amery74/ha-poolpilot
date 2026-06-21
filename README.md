@@ -1,28 +1,26 @@
-# Pool Pilot v0.3.0
+# Pool Pilot v0.4.0
 
-Version avec planification automatique de la filtration intégrée.
+Version simplifiée et alignée avec le dashboard.
 
-## Nouveautés
+## Configuration obligatoire
+- Volume du bassin en m³
+- Température eau
+- pH
+- Chlore libre ou ORP
+- Pompe de filtration, un seul switch ON/OFF
+- Entité météo `weather.xxx`
 
-- Un seul équipement pompe est nécessaire : `CONF_PUMP_SWITCH` / entité pompe existante.
-- Nouveau switch Home Assistant : **Filtration auto planifiée**.
-- Pool Pilot calcule la durée quotidienne recommandée puis crée des créneaux.
-- Démarrage/arrêt automatique de la pompe pendant les créneaux.
-- Si la durée est longue, la filtration est découpée en deux cycles.
-- Services :
-  - `pool_pilot.enable_auto_schedule`
-  - `pool_pilot.disable_auto_schedule`
-  - `pool_pilot.toggle_auto_schedule`
-  - `pool_pilot.start_auto_filtration` reste disponible pour démarrage immédiat.
+## Supprimé de l'assistant d'installation
+- PAC
+- Volet / cover
+- Température prévue séparée
+- TAC / TH / Stabilisant comme entités
 
-## Logique de planning
+Ces éléments sont soit configurés dans le dashboard, soit renseignés manuellement via le Mode Expert.
 
-- Durée = durée recommandée calculée par Pool Pilot.
-- Durée <= 12h : un créneau centré autour de 15h.
-- Durée > 12h : deux créneaux, matin + après-midi/soir.
-- Pool Pilot n’éteint la pompe automatiquement que si c’est lui qui l’a allumée via le planning.
-
-
-### Modifier/supprimer Pool House
-
-Cette build 0.3.0 ajoute aussi le service `pool_pilot.update_product` et conserve `pool_pilot.remove_product` pour la carte Dashboard : le stylo modifie un produit existant, la croix le supprime.
+## Nouveau
+- Service `pool_pilot.update_strip_test`
+- Capteur `strip_test`
+- Capteur `raw_measurements`
+- Calcul filtration basé sur température eau + météo + volume
+- Flux de configuration réécrit pour corriger l'erreur 500 lors de la reconfiguration.

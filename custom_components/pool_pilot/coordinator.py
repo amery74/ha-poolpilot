@@ -123,6 +123,8 @@ class PoolPilotData:
     calcium: float | None = None
     cya: float | None = None
     salt: float | None = None
+    strip_test: dict[str, Any] = field(default_factory=dict)
+    raw_measurements: list[dict[str, Any]] = field(default_factory=list)
     forecast_temp_c: float | None = None
     pump_on: bool | None = None
     heatpump_on: bool | None = None
@@ -161,6 +163,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._auto_schedule_enabled: bool = False
         self._auto_schedule_unsub: Callable[[], None] | None = None
         self._auto_schedule_owns_pump: bool = False
+        self.strip_test: dict[str, Any] = {}
+        self.raw_measurements: list[dict[str, Any]] = []
 
     @property
     def pool_name(self) -> str:
@@ -194,13 +198,15 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
     async def async_load_products(self) -> None:
         stored = await self._store.async_load() or {}
         self.products = {p.id: p for p in [ChemicalProduct.from_dict(x) for x in stored.get("products", [])]}
+        self.strip_test = dict(stored.get("strip_test", {}))
+        self.raw_measurements = list(stored.get("raw_measurements", []))
 
     async def async_load_scheduler_state(self) -> None:
         stored = await self._store.async_load() or {}
         self._auto_schedule_enabled = bool(stored.get("auto_schedule_enabled", False))
 
     async def async_save_products(self) -> None:
-        await self._store.async_save({"products": [p.as_dict() for p in self.products.values()], "auto_schedule_enabled": self._auto_schedule_enabled})
+        await self._store.async_save({"products": [p.as_dict() for p in self.products.values()], "auto_schedule_enabled": self._auto_schedule_enabled, "strip_test": self.strip_test, "raw_measurements": self.raw_measurements})
         self.async_set_updated_data(self._calculate())
 
     async def async_add_product(self, **data: Any) -> str:
@@ -255,6 +261,31 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self.async_set_updated_data(self._calculate())
 
 
+    async def async_update_strip_test(self, **data: Any) -> None:
+        """Save a manual strip-test / expert-mode measurement."""
+        now = dt_util.now()
+        cleaned: dict[str, Any] = {"updated_at": now.isoformat()}
+        for key in ("ph", "alkalinity", "calcium", "cya", "free_chlorine", "total_chlorine", "temperature"):
+            value = data.get(key)
+            if value not in (None, ""):
+                try:
+                    cleaned[key] = float(value)
+                except (TypeError, ValueError):
+                    pass
+        self.strip_test.update(cleaned)
+        row = {
+            "datetime": now.strftime("%d/%m %H:%M"),
+            "ph": cleaned.get("ph", self._float(self.config_entry.data.get(CONF_PH_ENTITY))),
+            "orp": self._float(self.config_entry.data.get(CONF_ORP_ENTITY)),
+            "temp": cleaned.get("temperature", self._temp_c(self.config_entry.data.get(CONF_TEMP_ENTITY))),
+            "free_chlorine": cleaned.get("free_chlorine"),
+            "total_chlorine": cleaned.get("total_chlorine"),
+            "source": "strip_test",
+        }
+        self.raw_measurements.insert(0, row)
+        self.raw_measurements = self.raw_measurements[:50]
+        await self.async_save_products()
+
     async def async_set_auto_schedule_enabled(self, enabled: bool) -> None:
         """Enable or disable the daily recommended filtration planner."""
         self._auto_schedule_enabled = bool(enabled)
@@ -275,7 +306,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         """
         d = self.config_entry.data
         temp = self._temp_c(d.get(CONF_TEMP_ENTITY))
-        forecast = self._temp_c(d.get(CONF_FORECAST_TEMP_ENTITY))
+        forecast = self._weather_forecast_temp() or self._temp_c(d.get(CONF_FORECAST_TEMP_ENTITY))
         cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
         calc_hours, _factor = self._filter_hours(temp, forecast, cover)
         hours = float(calc_hours or 0)
@@ -437,6 +468,42 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         if val in BAD_STATES: return None
         return str(val).lower() in {"on", "closed", "ferme", "fermée", "true"}
 
+    def _weather_forecast_temp(self) -> float | None:
+        entity_id = self.config_entry.data.get(CONF_WEATHER_ENTITY)
+        if not entity_id:
+            return None
+        st = self.hass.states.get(entity_id)
+        if not st:
+            return None
+        # Prefer max forecast temperature from attributes if available; otherwise
+        # use current weather temperature as a conservative proxy.
+        forecasts = st.attributes.get("forecast") or []
+        temps: list[float] = []
+        if isinstance(forecasts, list):
+            for item in forecasts[:8]:
+                if isinstance(item, dict):
+                    for key in ("temperature", "templow", "native_temperature"):
+                        val = item.get(key)
+                        try:
+                            if val is not None:
+                                temps.append(float(val))
+                        except (TypeError, ValueError):
+                            pass
+        for key in ("temperature", "native_temperature"):
+            val = st.attributes.get(key)
+            try:
+                if val is not None:
+                    temps.append(float(val))
+            except (TypeError, ValueError):
+                pass
+        if not temps:
+            return None
+        val = max(temps)
+        unit = st.attributes.get("temperature_unit") or st.attributes.get("unit_of_measurement")
+        if unit == UnitOfTemperature.FAHRENHEIT or unit == "°F":
+            return (val - 32) * 5 / 9
+        return val
+
     def _filter_hours(self, water_temp: float | None, forecast: float | None, covered: bool | None) -> tuple[float | None, float]:
         if water_temp is None: return None, 1.0
         coef = float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))
@@ -534,13 +601,13 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
     def _calculate(self) -> PoolPilotData:
         d = self.config_entry.data
         temp = self._temp_c(d.get(CONF_TEMP_ENTITY))
-        forecast = self._temp_c(d.get(CONF_FORECAST_TEMP_ENTITY))
+        forecast = self._weather_forecast_temp() or self._temp_c(d.get(CONF_FORECAST_TEMP_ENTITY))
         ph = self._float(d.get(CONF_PH_ENTITY))
         orp = self._float(d.get(CONF_ORP_ENTITY))
         fc = self._float(d.get(CONF_FC_ENTITY))
-        ta = self._float(d.get(CONF_TA_ENTITY))
-        ch = self._float(d.get(CONF_CH_ENTITY))
-        cya = self._float(d.get(CONF_CYA_ENTITY))
+        ta = self.strip_test.get("alkalinity", self._float(d.get(CONF_TA_ENTITY)))
+        ch = self.strip_test.get("calcium", self._float(d.get(CONF_CH_ENTITY)))
+        cya = self.strip_test.get("cya", self._float(d.get(CONF_CYA_ENTITY)))
         salt = self._float(d.get(CONF_SALT_ENTITY))
         pump_on = self._is_on(d.get(CONF_PUMP_SWITCH))
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
@@ -573,4 +640,4 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 actions.insert(0, "Planification filtration active: " + " / ".join(w["label"] for w in schedule_windows))
         if auto_active:
             actions.insert(0, f"Filtration auto en cours: {auto_remaining} h restantes")
-        return PoolPilotData(temp, ph, orp, fc, ta, ch, cya, salt, forecast, pump_on, hp_on, cover, hours, weather_factor, chemistry_status, bathing, " · ".join(actions) if actions else "Aucune action", alerts, recs, list(self.products.values()), self._last_product_confirmed, dt_util.now(), auto_active, self._auto_filter_end, auto_remaining, self._auto_schedule_enabled, schedule_status, schedule_windows, schedule_next)
+        return PoolPilotData(temp, ph, orp, fc, ta, ch, cya, salt, dict(self.strip_test), list(self.raw_measurements), forecast, pump_on, hp_on, cover, hours, weather_factor, chemistry_status, bathing, " · ".join(actions) if actions else "Aucune action", alerts, recs, list(self.products.values()), self._last_product_confirmed, dt_util.now(), auto_active, self._auto_filter_end, auto_remaining, self._auto_schedule_enabled, schedule_status, schedule_windows, schedule_next)

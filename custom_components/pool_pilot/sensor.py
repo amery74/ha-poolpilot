@@ -33,6 +33,8 @@ SENSORS = (
     PoolPilotSensorDescription(key="free_chlorine", translation_key="free_chlorine", native_unit_of_measurement="ppm", icon="mdi:water-plus", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.free_chlorine),
     PoolPilotSensorDescription(key="product_recommendation", translation_key="product_recommendation", icon="mdi:flask-plus", value_fn=lambda d: (f"Ajouter {round(d.recommendations[0].quantity, 2)} {d.recommendations[0].unit} de {d.recommendations[0].product_name}" if d.recommendations else "Aucune recommandation produit"), attrs_fn=lambda d: {"recommendations": [r.as_dict() for r in d.recommendations]}),
     PoolPilotSensorDescription(key="pool_house", translation_key="pool_house", icon="mdi:home-silo", value_fn=lambda d: len(d.products), attrs_fn=lambda d: {"products": [p.as_dict() for p in d.products]}),
+    PoolPilotSensorDescription(key="strip_test", translation_key="strip_test", icon="mdi:test-tube", value_fn=lambda d: d.strip_test.get("updated_at", "Jamais"), attrs_fn=lambda d: dict(d.strip_test)),
+    PoolPilotSensorDescription(key="raw_measurements", translation_key="raw_measurements", icon="mdi:table", value_fn=lambda d: len(d.raw_measurements), attrs_fn=lambda d: {"measurements": d.raw_measurements}),
 )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:

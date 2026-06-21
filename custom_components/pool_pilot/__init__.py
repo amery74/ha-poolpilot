@@ -39,6 +39,15 @@ CONFIRM_SCHEMA = vol.Schema({
 })
 REMOVE_SCHEMA = vol.Schema({vol.Required("product_id"): cv.string})
 START_AUTO_FILTER_SCHEMA = vol.Schema({vol.Optional("duration_hours"): vol.Coerce(float)})
+UPDATE_STRIP_TEST_SCHEMA = vol.Schema({
+    vol.Optional("ph"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("alkalinity"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("calcium"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("cya"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("free_chlorine"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("total_chlorine"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("temperature"): vol.Any(None, vol.Coerce(float)),
+})
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async def _coordinator() -> PoolPilotCoordinator:
@@ -87,6 +96,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         c = await _coordinator()
         await c.async_toggle_auto_schedule()
 
+    async def update_strip_test(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_update_strip_test(**dict(call.data))
+
     hass.services.async_register(DOMAIN, "add_product", add_product, schema=ADD_PRODUCT_SCHEMA)
     hass.services.async_register(DOMAIN, "update_product", update_product, schema=UPDATE_PRODUCT_SCHEMA)
     hass.services.async_register(DOMAIN, "set_product_stock", set_product_stock, schema=SET_STOCK_SCHEMA)
@@ -97,6 +110,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.services.async_register(DOMAIN, "enable_auto_schedule", enable_auto_schedule)
     hass.services.async_register(DOMAIN, "disable_auto_schedule", disable_auto_schedule)
     hass.services.async_register(DOMAIN, "toggle_auto_schedule", toggle_auto_schedule)
+    hass.services.async_register(DOMAIN, "update_strip_test", update_strip_test, schema=UPDATE_STRIP_TEST_SCHEMA)
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: PoolPilotConfigEntry) -> bool:

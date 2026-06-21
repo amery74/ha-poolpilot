@@ -273,3 +273,70 @@ disable_auto_schedule:
 toggle_auto_schedule:
   name: Basculer la planification filtration
   description: Active ou désactive la planification quotidienne de filtration.
+
+update_strip_test:
+  name: Enregistrer un test de bandelette
+  description: Enregistre les valeurs mesurées manuellement dans le Mode Expert du dashboard.
+  fields:
+    ph:
+      name: pH
+      selector:
+        number:
+          min: 0
+          max: 14
+          step: 0.01
+          mode: box
+    alkalinity:
+      name: TAC
+      selector:
+        number:
+          min: 0
+          max: 500
+          step: 1
+          unit_of_measurement: ppm
+          mode: box
+    calcium:
+      name: TH
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 1
+          unit_of_measurement: ppm
+          mode: box
+    cya:
+      name: Stabilisant
+      selector:
+        number:
+          min: 0
+          max: 300
+          step: 1
+          unit_of_measurement: ppm
+          mode: box
+    free_chlorine:
+      name: Chlore libre
+      selector:
+        number:
+          min: 0
+          max: 20
+          step: 0.1
+          unit_of_measurement: ppm
+          mode: box
+    total_chlorine:
+      name: Chlore total
+      selector:
+        number:
+          min: 0
+          max: 20
+          step: 0.1
+          unit_of_measurement: ppm
+          mode: box
+    temperature:
+      name: Température
+      selector:
+        number:
+          min: 0
+          max: 50
+          step: 0.1
+          unit_of_measurement: °C
+          mode: box

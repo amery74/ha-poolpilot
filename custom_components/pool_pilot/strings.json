@@ -136,6 +136,9 @@
           "active": "En cours",
           "idle": "Inactive"
         }
+      },
+      "auto_schedule_status": {
+        "name": "Statut filtration automatique"
       }
     },
     "number": {
@@ -179,6 +182,9 @@
       },
       "start_auto_filter": {
         "name": "Filtration auto recommandée"
+      },
+      "toggle_auto_schedule": {
+        "name": "Basculer filtration automatique"
       }
     },
     "select": {
@@ -189,6 +195,11 @@
           "manual": "Manuel",
           "auto": "Automatique"
         }
+      }
+    },
+    "switch": {
+      "auto_schedule": {
+        "name": "Filtration automatique"
       }
     }
   }
