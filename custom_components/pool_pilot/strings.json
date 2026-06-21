@@ -198,6 +198,9 @@
       }
     },
     "switch": {
+      "auto_filter": {
+        "name": "Filtration automatique Pool Pilot"
+      },
       "auto_schedule": {
         "name": "Filtration automatique"
       }

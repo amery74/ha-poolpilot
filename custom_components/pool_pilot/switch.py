@@ -14,6 +14,11 @@ class PoolPilotSwitchDescription(SwitchEntityDescription):
 
 SWITCHES = (
     PoolPilotSwitchDescription(
+        key="auto_filter",
+        translation_key="auto_filter",
+        icon="mdi:lightning-bolt-auto",
+    ),
+    PoolPilotSwitchDescription(
         key="auto_schedule",
         translation_key="auto_schedule",
         icon="mdi:lightning-bolt-circle",
@@ -22,7 +27,36 @@ SWITCHES = (
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: PoolPilotCoordinator = entry.runtime_data
-    async_add_entities([PoolPilotAutoScheduleSwitch(coordinator, desc) for desc in SWITCHES])
+    async_add_entities([PoolPilotAutoFilterSwitch(coordinator, SWITCHES[0]), PoolPilotAutoScheduleSwitch(coordinator, SWITCHES[1])])
+
+class PoolPilotAutoFilterSwitch(PoolPilotEntity, SwitchEntity):
+    entity_description: PoolPilotSwitchDescription
+
+    def __init__(self, coordinator: PoolPilotCoordinator, description: PoolPilotSwitchDescription) -> None:
+        super().__init__(coordinator, description.key)
+        self.entity_description = description
+
+    @property
+    def is_on(self) -> bool | None:
+        data = self.coordinator.data
+        return bool(data.auto_filter_active) if data else False
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        data = self.coordinator.data
+        if not data:
+            return {}
+        return {
+            "remaining_hours": data.auto_filter_remaining_hours,
+            "end": data.auto_filter_end.isoformat() if data.auto_filter_end else None,
+        }
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self.coordinator.async_start_auto_filter()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self.coordinator.async_stop_auto_filter(turn_off=True)
+
 
 class PoolPilotAutoScheduleSwitch(PoolPilotEntity, SwitchEntity):
     entity_description: PoolPilotSwitchDescription
