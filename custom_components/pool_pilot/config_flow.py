@@ -95,21 +95,24 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
 class PoolPilotOptionsFlow(OptionsFlow):
     """Options flow for Pool Pilot.
 
-    Home Assistant uses the options flow when the user clicks "Configurer" on
-    the integration. Earlier builds only exposed tuning values here, so entity
-    replacement (pump, heat pump, Flipr sensors, weather) could not be changed
-    safely and could raise a 500 error depending on the HA version.
-
-    This flow now edits both:
-    - config entry data: pool identity + linked HA entities;
-    - config entry options: targets and filtration behaviour.
+    This version avoids passing None as default values to Home Assistant
+    selectors, which can make the options flow crash with a 500 error on
+    some HA releases when opening the integration configuration screen.
     """
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         self.config_entry = config_entry
 
     def _current(self, key: str, default: Any = None) -> Any:
-        return self.config_entry.options.get(key, self.config_entry.data.get(key, default))
+        value = self.config_entry.options.get(key, self.config_entry.data.get(key, default))
+        return default if value is None else value
+
+    def _optional_entity(self, key: str, selector: Any) -> Any:
+        """Build an optional entity field without a None default."""
+        current = self._current(key, None)
+        if current in (None, ""):
+            return vol.Optional(key)
+        return vol.Optional(key, default=current)
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
@@ -143,7 +146,6 @@ class PoolPilotOptionsFlow(OptionsFlow):
                 CONF_FREE_CHLORINE_MODE,
             }
 
-            # Keep existing values unless the user explicitly clears/selects a field.
             new_data = dict(self.config_entry.data)
             new_options = dict(self.config_entry.options)
 
@@ -162,7 +164,7 @@ class PoolPilotOptionsFlow(OptionsFlow):
                 data=new_data,
                 options=new_options,
             )
-            return self.async_create_entry(title="", data=new_options)
+            return self.async_create_entry(title="", data={})
 
         sensor = EntitySelector(EntitySelectorConfig(domain="sensor"))
         switch = EntitySelector(EntitySelectorConfig(domain=["switch", "input_boolean"]))
@@ -170,25 +172,25 @@ class PoolPilotOptionsFlow(OptionsFlow):
         weather = EntitySelector(EntitySelectorConfig(domain="weather"))
         binary = EntitySelector(EntitySelectorConfig(domain=["binary_sensor", "input_boolean", "cover", "switch"]))
 
-        return self.async_show_form(step_id="init", data_schema=vol.Schema({
+        schema = {
             vol.Required(CONF_POOL_NAME, default=self._current(CONF_POOL_NAME, "Piscine")): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_VOLUME_M3, default=self._current(CONF_VOLUME_M3, 50.0)): NumberSelector(NumberSelectorConfig(min=1, max=500, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="m³")),
             vol.Required(CONF_POOL_TYPE, default=self._current(CONF_POOL_TYPE, POOL_TYPE_CHLORINE)): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_SURFACE_TYPE, default=self._current(CONF_SURFACE_TYPE, "liner")): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
 
-            vol.Required(CONF_TEMP_ENTITY, default=self._current(CONF_TEMP_ENTITY)): sensor,
-            vol.Optional(CONF_PH_ENTITY, default=self._current(CONF_PH_ENTITY)): sensor,
-            vol.Optional(CONF_ORP_ENTITY, default=self._current(CONF_ORP_ENTITY)): sensor,
-            vol.Optional(CONF_FC_ENTITY, default=self._current(CONF_FC_ENTITY)): sensor,
-            vol.Optional(CONF_TA_ENTITY, default=self._current(CONF_TA_ENTITY)): sensor,
-            vol.Optional(CONF_CH_ENTITY, default=self._current(CONF_CH_ENTITY)): sensor,
-            vol.Optional(CONF_CYA_ENTITY, default=self._current(CONF_CYA_ENTITY)): sensor,
-            vol.Optional(CONF_SALT_ENTITY, default=self._current(CONF_SALT_ENTITY)): sensor,
-            vol.Optional(CONF_PUMP_SWITCH, default=self._current(CONF_PUMP_SWITCH)): switch,
-            vol.Optional(CONF_HEATPUMP_ENTITY, default=self._current(CONF_HEATPUMP_ENTITY)): hp,
-            vol.Optional(CONF_WEATHER_ENTITY, default=self._current(CONF_WEATHER_ENTITY)): weather,
-            vol.Optional(CONF_FORECAST_TEMP_ENTITY, default=self._current(CONF_FORECAST_TEMP_ENTITY)): sensor,
-            vol.Optional(CONF_COVER_ENTITY, default=self._current(CONF_COVER_ENTITY)): binary,
+            self._optional_entity(CONF_TEMP_ENTITY, sensor): sensor,
+            self._optional_entity(CONF_PH_ENTITY, sensor): sensor,
+            self._optional_entity(CONF_ORP_ENTITY, sensor): sensor,
+            self._optional_entity(CONF_FC_ENTITY, sensor): sensor,
+            self._optional_entity(CONF_TA_ENTITY, sensor): sensor,
+            self._optional_entity(CONF_CH_ENTITY, sensor): sensor,
+            self._optional_entity(CONF_CYA_ENTITY, sensor): sensor,
+            self._optional_entity(CONF_SALT_ENTITY, sensor): sensor,
+            self._optional_entity(CONF_PUMP_SWITCH, switch): switch,
+            self._optional_entity(CONF_HEATPUMP_ENTITY, hp): hp,
+            self._optional_entity(CONF_WEATHER_ENTITY, weather): weather,
+            self._optional_entity(CONF_FORECAST_TEMP_ENTITY, sensor): sensor,
+            self._optional_entity(CONF_COVER_ENTITY, binary): binary,
 
             vol.Required(CONF_TARGET_PH, default=self._current(CONF_TARGET_PH, DEFAULT_TARGET_PH)): NumberSelector(NumberSelectorConfig(min=6.8, max=8.0, step=0.1, mode=NumberSelectorMode.SLIDER)),
             vol.Required(CONF_TARGET_FC, default=self._current(CONF_TARGET_FC, DEFAULT_TARGET_FC)): NumberSelector(NumberSelectorConfig(min=0.5, max=10, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="ppm")),
@@ -198,4 +200,5 @@ class PoolPilotOptionsFlow(OptionsFlow):
             vol.Required(CONF_MAX_FILTER_HOURS, default=self._current(CONF_MAX_FILTER_HOURS, DEFAULT_MAX_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=1, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
             vol.Required(CONF_HEAT_PUMP_PRIORITY, default=self._current(CONF_HEAT_PUMP_PRIORITY, True)): BooleanSelector(),
             vol.Required(CONF_FREE_CHLORINE_MODE, default=self._current(CONF_FREE_CHLORINE_MODE, DEFAULT_FREE_CHLORINE_MODE)): BooleanSelector(),
-        }))
+        }
+        return self.async_show_form(step_id="init", data_schema=vol.Schema(schema))
