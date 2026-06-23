@@ -79,6 +79,10 @@ class PoolPilotAutoScheduleSwitch(PoolPilotEntity, SwitchEntity):
             "status": data.auto_schedule_status,
             "windows": data.auto_schedule_windows,
             "next_start": data.auto_schedule_next_start.isoformat() if data.auto_schedule_next_start else None,
+            "target_hours": data.auto_schedule_target_hours,
+            "done_hours": data.auto_schedule_done_hours,
+            "end_limit": data.auto_schedule_end_limit,
+            "detail": data.auto_schedule_detail,
         }
 
     async def async_turn_on(self, **kwargs) -> None:

@@ -64,7 +64,9 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title=self._data[CONF_POOL_NAME], data=self._data, options={
                 CONF_TARGET_PH: DEFAULT_TARGET_PH,
                 CONF_TARGET_FC: DEFAULT_TARGET_FC,
-                CONF_FILTERING_MODE: "auto",
+                CONF_FILTERING_MODE: "auto_intelligent",
+                CONF_AUTO_START_TIME: DEFAULT_AUTO_START_TIME,
+                CONF_AUTO_END_TIME: DEFAULT_AUTO_END_TIME,
                 CONF_FILTER_COEF: DEFAULT_FILTER_COEF,
                 CONF_MIN_FILTER_HOURS: DEFAULT_MIN_FILTER_HOURS,
                 CONF_MAX_FILTER_HOURS: DEFAULT_MAX_FILTER_HOURS,
@@ -115,7 +117,7 @@ class PoolPilotOptionsFlow(OptionsFlow):
             option_keys = {
                 CONF_TARGET_PH, CONF_TARGET_FC, CONF_FILTERING_MODE,
                 CONF_FILTER_COEF, CONF_MIN_FILTER_HOURS, CONF_MAX_FILTER_HOURS,
-                CONF_FREE_CHLORINE_MODE,
+                CONF_FREE_CHLORINE_MODE, CONF_AUTO_START_TIME, CONF_AUTO_END_TIME,
             }
             new_data = dict(self._entry.data)
             new_options = dict(self._entry.options)
@@ -152,7 +154,9 @@ class PoolPilotOptionsFlow(OptionsFlow):
             self._optional_entity(CONF_SALT_ENTITY): sensor,
             vol.Required(CONF_TARGET_PH, default=self._current(CONF_TARGET_PH, DEFAULT_TARGET_PH)): NumberSelector(NumberSelectorConfig(min=6.8, max=8.0, step=0.1, mode=NumberSelectorMode.SLIDER)),
             vol.Required(CONF_TARGET_FC, default=self._current(CONF_TARGET_FC, DEFAULT_TARGET_FC)): NumberSelector(NumberSelectorConfig(min=0.5, max=10, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="ppm")),
-            vol.Required(CONF_FILTERING_MODE, default=self._current(CONF_FILTERING_MODE, "auto")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_FILTERING_MODE, default=self._current(CONF_FILTERING_MODE, "auto_intelligent")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_AUTO_START_TIME, default=self._current(CONF_AUTO_START_TIME, DEFAULT_AUTO_START_TIME)): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+            vol.Required(CONF_AUTO_END_TIME, default=self._current(CONF_AUTO_END_TIME, DEFAULT_AUTO_END_TIME)): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_FILTER_COEF, default=self._current(CONF_FILTER_COEF, DEFAULT_FILTER_COEF)): NumberSelector(NumberSelectorConfig(min=1.0, max=4.0, step=0.1, mode=NumberSelectorMode.BOX)),
             vol.Required(CONF_MIN_FILTER_HOURS, default=self._current(CONF_MIN_FILTER_HOURS, DEFAULT_MIN_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
             vol.Required(CONF_MAX_FILTER_HOURS, default=self._current(CONF_MAX_FILTER_HOURS, DEFAULT_MAX_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=1, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),

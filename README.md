@@ -1,8 +1,32 @@
-# Pool Pilot v0.4.2
+# Pool Pilot v0.5.0
 
-Corrections :
-- l'intégration garde une seule entité utile pour l'auto quotidienne : le switch/bouton de filtration automatique Pool Pilot ;
-- les capteurs techniques `statut filtration auto`, `temps restant auto`, `statut planification` et `prochain démarrage` ne sont plus créés pour les nouvelles installations ;
-- le calcul de filtration météo reste côté Pool Pilot via l'entité `weather.xxx` configurée dans l'intégration.
+Version avec **filtration auto intelligente**.
 
-Note : Home Assistant peut conserver d'anciennes entités déjà créées dans le registre. Elles peuvent être supprimées manuellement depuis Paramètres > Appareils et services > Entités si elles ne servent plus.
+## Nouveautés
+
+- Mode manuel conservé.
+- Mode auto intelligent : activation une fois, Pool Pilot gère ensuite chaque jour.
+- Plage horaire par défaut : 07:00 → 22:00.
+- Calcul quotidien basé sur température eau + météo prévue.
+- Démarrage automatique chaque matin si le mode auto est actif.
+- Arrêt automatique lorsque la durée recommandée du jour est atteinte ou à 22:00.
+- Suivi du cycle du jour dans les attributs du switch auto.
+
+## Entité principale
+
+Utiliser le switch :
+
+```yaml
+switch.pool_pilot_filtration_auto_intelligente
+```
+
+Ses attributs exposent :
+
+- status
+- target_hours
+- done_hours
+- end_limit
+- next_start
+- windows
+- detail
+

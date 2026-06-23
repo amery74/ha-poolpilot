@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "0.4.1"
+VERSION: Final = "0.5.0"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -38,7 +38,7 @@ POOL_TYPE_SALT = "saltwater"
 POOL_TYPE_BROMINE = "bromine"
 POOL_TYPES = [POOL_TYPE_CHLORINE, POOL_TYPE_SALT, POOL_TYPE_BROMINE]
 SURFACE_TYPES = ["liner", "polyester", "concrete", "tile", "painted", "other"]
-FILTERING_MODES = ["off", "manual", "auto"]
+FILTERING_MODES = ["manual", "auto_intelligent"]
 
 DEFAULT_TARGET_PH = 7.4
 DEFAULT_TARGET_FC = 2.0
@@ -48,3 +48,9 @@ DEFAULT_MAX_FILTER_HOURS = 24.0
 DEFAULT_FREE_CHLORINE_MODE = False
 
 PLATFORMS = ["sensor", "number", "button", "select", "switch"]
+
+# Auto intelligent filtration defaults
+CONF_AUTO_START_TIME: Final = "auto_start_time"
+CONF_AUTO_END_TIME: Final = "auto_end_time"
+DEFAULT_AUTO_START_TIME: Final = "07:00"
+DEFAULT_AUTO_END_TIME: Final = "22:00"

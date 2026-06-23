@@ -59,6 +59,8 @@
           "target_ph": "pH cible",
           "target_fc": "Chlore libre cible",
           "filtering_mode": "Mode filtration",
+          "auto_start_time": "Début filtration auto",
+          "auto_end_time": "Fin filtration auto",
           "filter_coef": "Coefficient filtration",
           "min_filter_hours": "Filtration minimum",
           "max_filter_hours": "Filtration maximum",
@@ -72,7 +74,8 @@
         "options": {
           "off": "Arrêt",
           "manual": "Manuel",
-          "auto": "Automatique"
+          "auto": "Automatique",
+          "auto_intelligent": "Auto intelligent"
         }
       }
     }
@@ -129,6 +132,9 @@
       },
       "auto_schedule_status": {
         "name": "Statut filtration automatique"
+      },
+      "smart_filtration": {
+        "name": "Filtration intelligente"
       }
     },
     "number": {
@@ -183,7 +189,8 @@
         "state": {
           "off": "Arrêt",
           "manual": "Manuel",
-          "auto": "Automatique"
+          "auto": "Automatique",
+          "auto_intelligent": "Auto intelligent"
         }
       }
     },
@@ -192,7 +199,7 @@
         "name": "Filtration automatique Pool Pilot"
       },
       "auto_schedule": {
-        "name": "Filtration automatique"
+        "name": "Filtration auto intelligente"
       }
     }
   }
