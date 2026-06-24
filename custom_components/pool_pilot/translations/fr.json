@@ -159,6 +159,9 @@
       },
       "strip_temperature": {
         "name": "Température bandelette"
+      },
+      "maintenance_journal": {
+        "name": "Carnet d'entretien"
       }
     },
     "number": {

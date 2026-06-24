@@ -41,6 +41,7 @@ SENSORS = (
     PoolPilotSensorDescription(key="strip_total_chlorine", translation_key="strip_total_chlorine", icon="mdi:test-tube", value_fn=lambda d: d.strip_test.get("total_chlorine"), attrs_fn=lambda d: {"updated_at": d.strip_test.get("updated_at"), "source": "strip_test"}),
     PoolPilotSensorDescription(key="strip_temperature", translation_key="strip_temperature", icon="mdi:thermometer", value_fn=lambda d: d.strip_test.get("temperature"), attrs_fn=lambda d: {"updated_at": d.strip_test.get("updated_at"), "source": "strip_test"}),
     PoolPilotSensorDescription(key="raw_measurements", translation_key="raw_measurements", icon="mdi:table", value_fn=lambda d: len(d.raw_measurements), attrs_fn=lambda d: {"measurements": d.raw_measurements}),
+    PoolPilotSensorDescription(key="maintenance_journal", translation_key="maintenance_journal", icon="mdi:timeline-clock-outline", value_fn=lambda d: len(d.maintenance_journal), attrs_fn=lambda d: {"entries": d.maintenance_journal[:100]}),
 )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:

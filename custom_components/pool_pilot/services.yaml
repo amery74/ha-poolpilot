@@ -340,3 +340,67 @@ update_strip_test:
           step: 0.1
           unit_of_measurement: °C
           mode: box
+
+add_journal_entry:
+  name: Ajouter une entrée au carnet d'entretien
+  fields:
+    category:
+      name: Catégorie
+      required: false
+      selector:
+        select:
+          options:
+            - weather
+            - stock
+            - note
+            - strip_test
+            - equipment
+            - water_quality
+            - cleaning
+            - chemical
+            - drain
+            - filtration
+            - maintenance
+            - filter
+            - alert
+    title:
+      name: Titre
+      required: false
+      selector:
+        text:
+    description:
+      name: Commentaire
+      required: false
+      selector:
+        text:
+          multiline: true
+    quantity:
+      name: Quantité
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 0.1
+          mode: box
+    unit:
+      name: Unité
+      required: false
+      selector:
+        text:
+    percent:
+      name: Pourcentage
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+remove_journal_entry:
+  name: Supprimer une entrée du carnet d'entretien
+  fields:
+    entry_id:
+      name: ID entrée
+      required: true
+      selector:
+        text:

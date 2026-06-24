@@ -1,0 +1,14 @@
+v0.5.4
+
+Correction Test bandelette :
+- création d'une entité synthèse : sensor.<piscine>_test_bandelette ;
+- création d'entités dédiées :
+  - pH bandelette
+  - TAC bandelette
+  - TH bandelette
+  - Stabilisant bandelette
+  - Chlore libre bandelette
+  - Chlore total bandelette
+  - Température bandelette
+- les valeurs restent stockées dans Pool Pilot et réutilisées dans les calculs ;
+- la carte peut maintenant lire les valeurs depuis Home Assistant, pas seulement en local.

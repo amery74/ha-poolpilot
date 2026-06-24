@@ -125,6 +125,7 @@ class PoolPilotData:
     salt: float | None = None
     strip_test: dict[str, Any] = field(default_factory=dict)
     raw_measurements: list[dict[str, Any]] = field(default_factory=list)
+    maintenance_journal: list[dict[str, Any]] = field(default_factory=list)
     forecast_temp_c: float | None = None
     pump_on: bool | None = None
     heatpump_on: bool | None = None
@@ -169,6 +170,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._auto_schedule_owns_pump: bool = False
         self.strip_test: dict[str, Any] = {}
         self.raw_measurements: list[dict[str, Any]] = []
+        self.maintenance_journal: list[dict[str, Any]] = []
         self._auto_schedule_day = None
         self._auto_schedule_seconds_today: float = 0.0
         self._auto_schedule_last_tick: datetime | None = None
@@ -207,6 +209,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self.products = {p.id: p for p in [ChemicalProduct.from_dict(x) for x in stored.get("products", [])]}
         self.strip_test = dict(stored.get("strip_test", {}))
         self.raw_measurements = list(stored.get("raw_measurements", []))
+        self.maintenance_journal = list(stored.get("maintenance_journal", []))
 
     async def async_load_scheduler_state(self) -> None:
         stored = await self._store.async_load() or {}
@@ -215,7 +218,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._auto_schedule_seconds_today = float(stored.get("auto_schedule_seconds_today", 0.0) or 0.0)
 
     async def async_save_products(self) -> None:
-        await self._store.async_save({"products": [p.as_dict() for p in self.products.values()], "auto_schedule_enabled": self._auto_schedule_enabled, "strip_test": self.strip_test, "raw_measurements": self.raw_measurements, "auto_schedule_day": self._auto_schedule_day, "auto_schedule_seconds_today": self._auto_schedule_seconds_today})
+        await self._store.async_save({"products": [p.as_dict() for p in self.products.values()], "auto_schedule_enabled": self._auto_schedule_enabled, "strip_test": self.strip_test, "raw_measurements": self.raw_measurements, "maintenance_journal": self.maintenance_journal, "auto_schedule_day": self._auto_schedule_day, "auto_schedule_seconds_today": self._auto_schedule_seconds_today})
         self.async_set_updated_data(self._calculate())
 
     async def async_add_product(self, **data: Any) -> str:
@@ -259,6 +262,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         if p.stock_quantity is not None and p.stock_unit == p.dosage_unit:
             p.stock_quantity = max(0.0, p.stock_quantity - float(quantity))
         self._last_product_confirmed = f"{p.name}: {self._fmt_quantity(float(quantity), p.dosage_unit)} à {dt_util.now().strftime('%Y-%m-%d %H:%M')}"
+        self._append_journal_entry("chemical", "Utilisation de produits chimiques", f"Ajout de {self._fmt_quantity(float(quantity), p.dosage_unit)} de {p.name}", product_id=p.id, product_name=p.name, quantity=float(quantity), unit=p.dosage_unit)
         await self.async_save_products()
 
     def confirm_product(self, category: str) -> None:
@@ -269,6 +273,94 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._last_product_confirmed = f"{category} à {dt_util.now().strftime('%Y-%m-%d %H:%M')}"
             self.async_set_updated_data(self._calculate())
 
+
+
+    def _journal_label(self, category: str) -> str:
+        labels = {
+            "water_quality": "Qualité de l'eau",
+            "strip_test": "Nouveau test de bandelettes",
+            "chemical": "Utilisation de produits chimiques",
+            "stock": "Gestion des stocks",
+            "equipment": "Nouvel équipement",
+            "maintenance": "Entretien",
+            "cleaning": "Nettoyage",
+            "filter": "Lavage filtre",
+            "drain": "Vidange de la piscine",
+            "weather": "Événement climatique",
+            "filtration": "Filtration",
+            "note": "Note",
+            "alert": "Alerte",
+        }
+        return labels.get(category, category or "Note")
+
+    def _journal_color(self, category: str) -> str:
+        colors = {
+            "alert": "#ff1515",
+            "water_quality": "#ff1515",
+            "chemical": "#459be8",
+            "stock": "#c414d9",
+            "strip_test": "#2fcbd0",
+            "equipment": "#b914d9",
+            "maintenance": "#b914d9",
+            "cleaning": "#b914d9",
+            "filter": "#b914d9",
+            "drain": "#2ea8df",
+            "weather": "#f59f18",
+            "filtration": "#2fcbd0",
+            "note": "#64748b",
+        }
+        return colors.get(category, "#64748b")
+
+    def _journal_icon(self, category: str) -> str:
+        icons = {
+            "alert": "mdi:close",
+            "water_quality": "mdi:close",
+            "chemical": "mdi:bottle-tonic-outline",
+            "stock": "mdi:package-variant-closed",
+            "strip_test": "mdi:test-tube",
+            "equipment": "mdi:tools",
+            "maintenance": "mdi:tools",
+            "cleaning": "mdi:broom",
+            "filter": "mdi:filter-outline",
+            "drain": "mdi:water-percent",
+            "weather": "mdi:weather-lightning",
+            "filtration": "mdi:sync",
+            "note": "mdi:note-text-outline",
+        }
+        return icons.get(category, "mdi:note-text-outline")
+
+    def _append_journal_entry(self, category: str, title: str | None = None, description: str | None = None, **extra: Any) -> str:
+        now = dt_util.now()
+        entry_id = str(extra.pop("id", None) or uuid.uuid4().hex[:10])
+        category = category or "note"
+        entry = {
+            "id": entry_id,
+            "date": now.isoformat(),
+            "datetime": now.strftime("%d/%m %H:%M"),
+            "category": category,
+            "category_label": self._journal_label(category),
+            "title": title or self._journal_label(category),
+            "description": description or "",
+            "icon": self._journal_icon(category),
+            "color": self._journal_color(category),
+            **{k: v for k, v in extra.items() if v is not None},
+        }
+        self.maintenance_journal.insert(0, entry)
+        self.maintenance_journal = self.maintenance_journal[:250]
+        return entry_id
+
+    async def async_add_journal_entry(self, **data: Any) -> str:
+        category = str(data.get("category") or "note")
+        title = data.get("title") or self._journal_label(category)
+        description = data.get("description") or data.get("comment") or ""
+        extra = {k: v for k, v in data.items() if k not in ("category", "title", "description", "comment")}
+        entry_id = self._append_journal_entry(category, str(title), str(description), **extra)
+        await self.async_save_products()
+        return entry_id
+
+    async def async_remove_journal_entry(self, entry_id: str) -> None:
+        self.maintenance_journal = [e for e in self.maintenance_journal if str(e.get("id")) != str(entry_id)]
+        await self.async_save_products()
 
     async def async_update_strip_test(self, **data: Any) -> None:
         """Save a manual strip-test / expert-mode measurement.
@@ -333,6 +425,19 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         }
         self.raw_measurements.insert(0, row)
         self.raw_measurements = self.raw_measurements[:50]
+        details = []
+        for label, key, unit in (
+            ("pH", "ph", ""),
+            ("TAC", "alkalinity", " ppm"),
+            ("TH", "calcium", " ppm"),
+            ("Stabilisant", "cya", " ppm"),
+            ("Chlore libre", "free_chlorine", " ppm"),
+            ("Chlore total", "total_chlorine", " ppm"),
+            ("Température", "temperature", " °C"),
+        ):
+            if key in cleaned:
+                details.append(f"{label}: {cleaned[key]}{unit}")
+        self._append_journal_entry("strip_test", "Nouveau test de bandelettes", " · ".join(details), values=dict(cleaned))
         await self.async_save_products()
 
     async def async_set_auto_schedule_enabled(self, enabled: bool) -> None:
