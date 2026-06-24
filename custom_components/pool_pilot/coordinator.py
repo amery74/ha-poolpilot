@@ -271,25 +271,65 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
 
     async def async_update_strip_test(self, **data: Any) -> None:
-        """Save a manual strip-test / expert-mode measurement."""
+        """Save a manual strip-test / expert-mode measurement.
+
+        The strip test is stored persistently in the integration Store, exposed
+        through sensor.pool_pilot_strip_test attributes, and reused by Pool Pilot
+        calculations for manual-only values such as TAC/TH/CYA.
+
+        Live sensors remain the priority for pH / free chlorine when configured.
+        Strip pH / free chlorine are used as fallback values when no live entity is
+        available.
+        """
         now = dt_util.now()
-        cleaned: dict[str, Any] = {"updated_at": now.isoformat()}
-        for key in ("ph", "alkalinity", "calcium", "cya", "free_chlorine", "total_chlorine", "temperature"):
-            value = data.get(key)
+
+        aliases = {
+            "ph": ("ph", "strip_ph"),
+            "alkalinity": ("alkalinity", "tac", "strip_alkalinity"),
+            "calcium": ("calcium", "hardness", "th", "strip_calcium"),
+            "cya": ("cya", "stabilizer", "stabilisant", "strip_cya"),
+            "free_chlorine": ("free_chlorine", "chlorine_free", "chlore_libre", "strip_free_chlorine"),
+            "total_chlorine": ("total_chlorine", "chlorine_total", "chlore_total", "strip_total_chlorine"),
+            "temperature": ("temperature", "temp", "strip_temperature"),
+        }
+
+        cleaned: dict[str, Any] = {
+            "updated_at": now.isoformat(),
+            "updated_at_local": now.strftime("%d/%m/%Y %H:%M"),
+            "source": "strip_test",
+        }
+
+        for target, keys in aliases.items():
+            value = None
+            for key in keys:
+                if data.get(key) not in (None, ""):
+                    value = data.get(key)
+                    break
             if value not in (None, ""):
                 try:
-                    cleaned[key] = float(value)
+                    cleaned[target] = float(value)
                 except (TypeError, ValueError):
                     pass
+
+        # Useful display conversions for the dashboard.
+        if "alkalinity" in cleaned:
+            cleaned["alkalinity_f"] = round(float(cleaned["alkalinity"]) / 10, 1)
+        if "calcium" in cleaned:
+            cleaned["calcium_f"] = round(float(cleaned["calcium"]) / 10, 1)
+
         self.strip_test.update(cleaned)
+
         row = {
             "datetime": now.strftime("%d/%m %H:%M"),
+            "source": "strip_test",
             "ph": cleaned.get("ph", self._float(self.config_entry.data.get(CONF_PH_ENTITY))),
             "orp": self._float(self.config_entry.data.get(CONF_ORP_ENTITY)),
             "temp": cleaned.get("temperature", self._temp_c(self.config_entry.data.get(CONF_TEMP_ENTITY))),
+            "alkalinity": cleaned.get("alkalinity"),
+            "calcium": cleaned.get("calcium"),
+            "cya": cleaned.get("cya"),
             "free_chlorine": cleaned.get("free_chlorine"),
             "total_chlorine": cleaned.get("total_chlorine"),
-            "source": "strip_test",
         }
         self.raw_measurements.insert(0, row)
         self.raw_measurements = self.raw_measurements[:50]
@@ -638,16 +678,28 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"RedOx bas ({orp:.0f} mV), désinfection à renforcer.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
         return recs
 
+    def _strip_or_entity_float(self, strip_key: str, entity_id: str | None, prefer_strip: bool = False) -> float | None:
+        """Return a value from strip test or live entity.
+
+        For automatically measured values, live entity wins by default.
+        For manual-only values such as TAC/TH/CYA, strip wins.
+        """
+        strip_value = self.strip_test.get(strip_key)
+        entity_value = self._float(entity_id)
+        if prefer_strip:
+            return strip_value if strip_value is not None else entity_value
+        return entity_value if entity_value is not None else strip_value
+
     def _calculate(self) -> PoolPilotData:
         d = self.config_entry.data
         temp = self._temp_c(d.get(CONF_TEMP_ENTITY))
         forecast = self._weather_forecast_temp() or self._temp_c(d.get(CONF_FORECAST_TEMP_ENTITY))
-        ph = self._float(d.get(CONF_PH_ENTITY))
+        ph = self._strip_or_entity_float("ph", d.get(CONF_PH_ENTITY), prefer_strip=False)
         orp = self._float(d.get(CONF_ORP_ENTITY))
-        fc = self._float(d.get(CONF_FC_ENTITY))
-        ta = self.strip_test.get("alkalinity", self._float(d.get(CONF_TA_ENTITY)))
-        ch = self.strip_test.get("calcium", self._float(d.get(CONF_CH_ENTITY)))
-        cya = self.strip_test.get("cya", self._float(d.get(CONF_CYA_ENTITY)))
+        fc = self._strip_or_entity_float("free_chlorine", d.get(CONF_FC_ENTITY), prefer_strip=False)
+        ta = self._strip_or_entity_float("alkalinity", d.get(CONF_TA_ENTITY), prefer_strip=True)
+        ch = self._strip_or_entity_float("calcium", d.get(CONF_CH_ENTITY), prefer_strip=True)
+        cya = self._strip_or_entity_float("cya", d.get(CONF_CYA_ENTITY), prefer_strip=True)
         salt = self._float(d.get(CONF_SALT_ENTITY))
         pump_on = self._is_on(d.get(CONF_PUMP_SWITCH))
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
