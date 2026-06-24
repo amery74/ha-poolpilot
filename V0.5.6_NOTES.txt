@@ -1,0 +1,6 @@
+v0.5.6
+
+Correctif critique :
+- correction de la construction PoolPilotData après ajout du carnet d'entretien ;
+- les capteurs Pool House, Facteur météo et Carnet d'entretien doivent de nouveau être créés correctement ;
+- le carnet d'entretien est initialisé à 0 entrée au lieu de casser le coordinator.
