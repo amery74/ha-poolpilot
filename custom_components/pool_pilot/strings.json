@@ -145,6 +145,30 @@
       },
       "smart_filtration": {
         "name": "Filtration intelligente"
+      },
+      "strip_test": {
+        "name": "Test bandelette"
+      },
+      "strip_ph": {
+        "name": "pH bandelette"
+      },
+      "strip_alkalinity": {
+        "name": "TAC bandelette"
+      },
+      "strip_calcium": {
+        "name": "TH bandelette"
+      },
+      "strip_cya": {
+        "name": "Stabilisant bandelette"
+      },
+      "strip_free_chlorine": {
+        "name": "Chlore libre bandelette"
+      },
+      "strip_total_chlorine": {
+        "name": "Chlore total bandelette"
+      },
+      "strip_temperature": {
+        "name": "Température bandelette"
       }
     },
     "number": {
