@@ -427,6 +427,19 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._auto_filter_unsub = None
 
         self._auto_filter_start = dt_util.now()
+
+        # Auto intelligent: ne jamais démarrer après l'heure de fin autorisée (22h par défaut)
+        end_cfg = self.option(CONF_AUTO_END_TIME, DEFAULT_AUTO_END_TIME)
+        try:
+            end_hour, end_min = [int(x) for x in str(end_cfg).split(":")]
+            now = self._auto_filter_start
+            if (now.hour, now.minute) >= (end_hour, end_min):
+                self._auto_filter_end = None
+                await self.async_request_refresh()
+                return
+        except Exception:
+            pass
+
         self._auto_filter_end = self._auto_filter_start + timedelta(hours=hours)
         await self.hass.services.async_call("homeassistant", "turn_on", {"entity_id": pump}, blocking=True)
 
