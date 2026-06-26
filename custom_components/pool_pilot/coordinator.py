@@ -174,6 +174,9 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._auto_schedule_day = None
         self._auto_schedule_seconds_today: float = 0.0
         self._auto_schedule_last_tick: datetime | None = None
+        self._forecast_daily_max_c: float | None = None
+        self._forecast_daily_max_date: str | None = None
+        self._forecast_daily_source: str | None = None
 
     @property
     def pool_name(self) -> str:
@@ -193,6 +196,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         if entities:
             self._unsubscribe = async_track_state_change_event(self.hass, entities, self._async_state_changed)
         self._auto_schedule_unsub = async_track_time_interval(self.hass, self._async_auto_schedule_tick, timedelta(minutes=1))
+        await self._async_refresh_forecast_daily_max()
         await self.async_request_refresh()
         await self._async_auto_schedule_tick(dt_util.now())
 
@@ -360,6 +364,26 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
     async def async_remove_journal_entry(self, entry_id: str) -> None:
         self.maintenance_journal = [e for e in self.maintenance_journal if str(e.get("id")) != str(entry_id)]
+        await self.async_save_products()
+
+    async def async_update_journal_entry(self, entry_id: str, **data: Any) -> None:
+        now = dt_util.now()
+        for entry in self.maintenance_journal:
+            if str(entry.get("id")) == str(entry_id):
+                if data.get("category"):
+                    entry["category"] = str(data["category"])
+                    entry["category_label"] = self._journal_label(entry["category"])
+                    entry["icon"] = self._journal_icon(entry["category"])
+                    entry["color"] = self._journal_color(entry["category"])
+                if data.get("title") is not None:
+                    entry["title"] = str(data.get("title") or self._journal_label(entry.get("category", "note")))
+                if data.get("description") is not None or data.get("comment") is not None:
+                    entry["description"] = str(data.get("description") if data.get("description") is not None else data.get("comment") or "")
+                for key in ("quantity", "unit", "percent"):
+                    if key in data:
+                        entry[key] = data.get(key)
+                entry["updated_at"] = now.isoformat()
+                break
         await self.async_save_products()
 
     async def async_update_strip_test(self, **data: Any) -> None:
@@ -537,6 +561,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._reset_auto_day_if_needed()
         now = dt_util.as_local(now)
         start, end = self._allowed_window_today()
+        await self._async_refresh_forecast_daily_max()
         target_hours = self._auto_schedule_target_hours()
         done_hours = self._auto_schedule_seconds_today / 3600
         pump_is_on = self._is_on(pump)
@@ -620,7 +645,108 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
     def _async_state_changed(self, event: Event[EventStateChangedData]) -> None:
         self.async_set_updated_data(self._calculate())
 
+    async def _async_refresh_forecast_daily_max(self) -> None:
+        """Cache today's maximum forecast temperature from the weather integration.
+
+        This avoids using the live/current Meteo-France temperature for the
+        filtration target. The smart filtration must be based on the daily max
+        forecast so the recommended duration stays stable during the day.
+        """
+        entity_id = self.config_entry.data.get(CONF_WEATHER_ENTITY)
+        today = dt_util.now().date().isoformat()
+        if self._forecast_daily_max_date == today and self._forecast_daily_max_c is not None:
+            return
+
+        self._forecast_daily_max_c = None
+        self._forecast_daily_max_date = today
+        self._forecast_daily_source = None
+
+        if not entity_id:
+            return
+
+        async def call_forecast(kind: str) -> list[dict[str, Any]]:
+            try:
+                response = await self.hass.services.async_call(
+                    "weather",
+                    "get_forecasts",
+                    {"type": kind, "entity_id": entity_id},
+                    blocking=True,
+                    return_response=True,
+                )
+            except TypeError:
+                response = None
+            except Exception:
+                _LOGGER.debug("Unable to fetch %s weather forecast for %s", kind, entity_id, exc_info=True)
+                response = None
+            if isinstance(response, dict):
+                payload = response.get(entity_id) or next(iter(response.values()), None)
+                if isinstance(payload, dict) and isinstance(payload.get("forecast"), list):
+                    return payload["forecast"]
+            return []
+
+        forecasts = await call_forecast("daily")
+        if not forecasts:
+            forecasts = await call_forecast("hourly")
+
+        temps: list[float] = []
+        for item in forecasts:
+            if not isinstance(item, dict):
+                continue
+            raw_dt = item.get("datetime") or item.get("time") or item.get("native_datetime")
+            item_date = None
+            if raw_dt:
+                try:
+                    item_date = dt_util.parse_datetime(str(raw_dt))
+                    if item_date:
+                        item_date = dt_util.as_local(item_date).date().isoformat()
+                except Exception:
+                    item_date = None
+            if item_date and item_date != today:
+                continue
+            for key in ("temperature", "native_temperature"):
+                val = item.get(key)
+                try:
+                    if val is not None:
+                        temps.append(float(val))
+                except (TypeError, ValueError):
+                    pass
+
+        if temps:
+            self._forecast_daily_max_c = max(temps)
+            self._forecast_daily_source = "weather.get_forecasts"
+            return
+
+        # Legacy fallback: old weather entities sometimes expose forecast in attributes.
+        st = self.hass.states.get(entity_id)
+        forecasts_attr = st.attributes.get("forecast") if st else None
+        if isinstance(forecasts_attr, list):
+            for item in forecasts_attr:
+                if not isinstance(item, dict):
+                    continue
+                raw_dt = item.get("datetime") or item.get("time")
+                item_date = None
+                if raw_dt:
+                    try:
+                        parsed = dt_util.parse_datetime(str(raw_dt))
+                        if parsed:
+                            item_date = dt_util.as_local(parsed).date().isoformat()
+                    except Exception:
+                        item_date = None
+                if item_date and item_date != today:
+                    continue
+                for key in ("temperature", "native_temperature"):
+                    val = item.get(key)
+                    try:
+                        if val is not None:
+                            temps.append(float(val))
+                    except (TypeError, ValueError):
+                        pass
+        if temps:
+            self._forecast_daily_max_c = max(temps)
+            self._forecast_daily_source = "weather.attributes.forecast"
+
     async def _async_update_data(self) -> PoolPilotData:
+        await self._async_refresh_forecast_daily_max()
         return self._calculate()
 
     def _state(self, entity_id: str | None) -> Any:
@@ -654,40 +780,12 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         return str(val).lower() in {"on", "closed", "ferme", "fermée", "true"}
 
     def _weather_forecast_temp(self) -> float | None:
-        entity_id = self.config_entry.data.get(CONF_WEATHER_ENTITY)
-        if not entity_id:
-            return None
-        st = self.hass.states.get(entity_id)
-        if not st:
-            return None
-        # Prefer max forecast temperature from attributes if available; otherwise
-        # use current weather temperature as a conservative proxy.
-        forecasts = st.attributes.get("forecast") or []
-        temps: list[float] = []
-        if isinstance(forecasts, list):
-            for item in forecasts[:8]:
-                if isinstance(item, dict):
-                    for key in ("temperature", "templow", "native_temperature"):
-                        val = item.get(key)
-                        try:
-                            if val is not None:
-                                temps.append(float(val))
-                        except (TypeError, ValueError):
-                            pass
-        for key in ("temperature", "native_temperature"):
-            val = st.attributes.get(key)
-            try:
-                if val is not None:
-                    temps.append(float(val))
-            except (TypeError, ValueError):
-                pass
-        if not temps:
-            return None
-        val = max(temps)
-        unit = st.attributes.get("temperature_unit") or st.attributes.get("unit_of_measurement")
-        if unit == UnitOfTemperature.FAHRENHEIT or unit == "°F":
-            return (val - 32) * 5 / 9
-        return val
+        """Return the daily maximum forecast temperature, never the live temp."""
+        today = dt_util.now().date().isoformat()
+        if self._forecast_daily_max_date == today and self._forecast_daily_max_c is not None:
+            return self._forecast_daily_max_c
+        # Optional explicit forecast sensor fallback, if configured by the user.
+        return self._temp_c(self.config_entry.data.get(CONF_FORECAST_TEMP_ENTITY))
 
     def _filter_hours(self, water_temp: float | None, forecast: float | None, covered: bool | None) -> tuple[float | None, float]:
         if water_temp is None: return None, 1.0
@@ -798,7 +896,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
     def _calculate(self) -> PoolPilotData:
         d = self.config_entry.data
         temp = self._temp_c(d.get(CONF_TEMP_ENTITY))
-        forecast = self._weather_forecast_temp() or self._temp_c(d.get(CONF_FORECAST_TEMP_ENTITY))
+        forecast = self._weather_forecast_temp()
         ph = self._strip_or_entity_float("ph", d.get(CONF_PH_ENTITY), prefer_strip=False)
         orp = self._float(d.get(CONF_ORP_ENTITY))
         fc = self._strip_or_entity_float("free_chlorine", d.get(CONF_FC_ENTITY), prefer_strip=False)
@@ -843,7 +941,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             actions.insert(0, f"Filtration intelligente: {schedule_done or 0} h / {schedule_target or 0} h")
         if auto_active:
             actions.insert(0, f"Filtration auto en cours: {auto_remaining} h restantes")
-        detail = {"mode": "auto_intelligent", "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M"), "water_temp_c": temp, "forecast_temp_c": forecast, "weather_factor": weather_factor, "base_hours": round((temp / float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))), 2) if temp is not None else None}
+        detail = {"mode": "auto_intelligent", "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M"), "water_temp_c": temp, "forecast_temp_c": forecast, "forecast_source": self._forecast_daily_source, "weather_factor": weather_factor, "base_hours": round((temp / float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))), 2) if temp is not None else None}
         return PoolPilotData(
             water_temp_c=temp,
             ph=ph,

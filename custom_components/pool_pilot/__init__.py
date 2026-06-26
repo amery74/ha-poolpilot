@@ -48,6 +48,16 @@ ADD_JOURNAL_ENTRY_SCHEMA = vol.Schema({
     vol.Optional("unit"): cv.string,
     vol.Optional("percent"): vol.Any(None, vol.Coerce(float)),
 }, extra=vol.ALLOW_EXTRA)
+UPDATE_JOURNAL_ENTRY_SCHEMA = vol.Schema({
+    vol.Required("entry_id"): cv.string,
+    vol.Optional("category"): vol.In(["weather", "stock", "note", "strip_test", "equipment", "water_quality", "cleaning", "chemical", "drain", "filtration", "maintenance", "filter", "alert"]),
+    vol.Optional("title"): cv.string,
+    vol.Optional("description"): cv.string,
+    vol.Optional("comment"): cv.string,
+    vol.Optional("quantity"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("unit"): cv.string,
+    vol.Optional("percent"): vol.Any(None, vol.Coerce(float)),
+}, extra=vol.ALLOW_EXTRA)
 REMOVE_JOURNAL_ENTRY_SCHEMA = vol.Schema({vol.Required("entry_id"): cv.string})
 
 UPDATE_STRIP_TEST_SCHEMA = vol.Schema({
@@ -111,6 +121,12 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         c = await _coordinator()
         await c.async_add_journal_entry(**dict(call.data))
 
+    async def update_journal_entry(call: ServiceCall) -> None:
+        c = await _coordinator()
+        data = dict(call.data)
+        entry_id = str(data.pop("entry_id"))
+        await c.async_update_journal_entry(entry_id, **data)
+
     async def remove_journal_entry(call: ServiceCall) -> None:
         c = await _coordinator()
         await c.async_remove_journal_entry(str(call.data["entry_id"]))
@@ -131,6 +147,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.services.async_register(DOMAIN, "toggle_auto_schedule", toggle_auto_schedule)
     hass.services.async_register(DOMAIN, "update_strip_test", update_strip_test, schema=UPDATE_STRIP_TEST_SCHEMA)
     hass.services.async_register(DOMAIN, "add_journal_entry", add_journal_entry, schema=ADD_JOURNAL_ENTRY_SCHEMA)
+    hass.services.async_register(DOMAIN, "update_journal_entry", update_journal_entry, schema=UPDATE_JOURNAL_ENTRY_SCHEMA)
     hass.services.async_register(DOMAIN, "remove_journal_entry", remove_journal_entry, schema=REMOVE_JOURNAL_ENTRY_SCHEMA)
     return True
 
