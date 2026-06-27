@@ -20,6 +20,8 @@ NUMBERS = (
     PoolPilotNumberDescription(key="filter_coef", translation_key="filter_coef", config_key=CONF_FILTER_COEF, default_value=DEFAULT_FILTER_COEF, native_min_value=1, native_max_value=4, native_step=0.1, mode=NumberMode.BOX, icon="mdi:division"),
     PoolPilotNumberDescription(key="min_filter_hours", translation_key="min_filter_hours", config_key=CONF_MIN_FILTER_HOURS, default_value=DEFAULT_MIN_FILTER_HOURS, native_min_value=0, native_max_value=24, native_step=0.5, native_unit_of_measurement="h", mode=NumberMode.BOX, icon="mdi:timer-outline"),
     PoolPilotNumberDescription(key="max_filter_hours", translation_key="max_filter_hours", config_key=CONF_MAX_FILTER_HOURS, default_value=DEFAULT_MAX_FILTER_HOURS, native_min_value=1, native_max_value=24, native_step=0.5, native_unit_of_measurement="h", mode=NumberMode.BOX, icon="mdi:timer"),
+    PoolPilotNumberDescription(key="water_temp_alert_min", translation_key="water_temp_alert_min", config_key=CONF_WATER_TEMP_ALERT_MIN, default_value=DEFAULT_WATER_TEMP_ALERT_MIN, native_min_value=-5, native_max_value=30, native_step=0.1, native_unit_of_measurement="°C", mode=NumberMode.BOX, icon="mdi:snowflake"),
+    PoolPilotNumberDescription(key="water_temp_alert_max", translation_key="water_temp_alert_max", config_key=CONF_WATER_TEMP_ALERT_MAX, default_value=DEFAULT_WATER_TEMP_ALERT_MAX, native_min_value=10, native_max_value=45, native_step=0.1, native_unit_of_measurement="°C", mode=NumberMode.BOX, icon="mdi:thermometer"),
 )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:

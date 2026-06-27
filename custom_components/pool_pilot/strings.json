@@ -172,6 +172,9 @@
       },
       "maintenance_journal": {
         "name": "Carnet d'entretien"
+      },
+      "pool_alerts": {
+        "name": "Alertes Pool Pilot"
       }
     },
     "number": {
@@ -189,6 +192,12 @@
       },
       "max_filter_hours": {
         "name": "Filtration maximum"
+      },
+      "water_temp_alert_min": {
+        "name": "Seuil eau trop froide"
+      },
+      "water_temp_alert_max": {
+        "name": "Seuil eau trop chaude"
       }
     },
     "button": {

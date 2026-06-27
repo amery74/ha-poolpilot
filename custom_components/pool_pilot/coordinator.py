@@ -136,6 +136,7 @@ class PoolPilotData:
     bathing_status: str = "unknown"
     action_summary: str = "Aucune donnée"
     alerts: list[str] = field(default_factory=list)
+    pool_alerts: list[dict[str, Any]] = field(default_factory=list)
     recommendations: list[ProductRecommendation] = field(default_factory=list)
     products: list[ChemicalProduct] = field(default_factory=list)
     last_product_confirmed: str | None = None
@@ -802,6 +803,71 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         hours = max(min_h, min(max_h, base * factor))
         return round(hours, 1), round(factor, 2)
 
+    def _build_pool_alerts(self, water_temp: float | None, ph: float | None, orp: float | None, fc: float | None, weather_factor: float) -> list[dict[str, Any]]:
+        alerts: list[dict[str, Any]] = []
+        min_temp = float(self.option(CONF_WATER_TEMP_ALERT_MIN, DEFAULT_WATER_TEMP_ALERT_MIN))
+        max_temp = float(self.option(CONF_WATER_TEMP_ALERT_MAX, DEFAULT_WATER_TEMP_ALERT_MAX))
+
+        if water_temp is not None and water_temp < min_temp:
+            alerts.append({
+                "id": "water_cold",
+                "type": "temperature",
+                "level": "info",
+                "title": "Eau trop froide",
+                "message": f"Température de l'eau inférieure au seuil mini ({min_temp} °C).",
+                "icon": "mdi:snowflake",
+                "badge": "snowflake",
+                "color": "white",
+            })
+
+        if water_temp is not None and water_temp > max_temp:
+            alerts.append({
+                "id": "water_hot",
+                "type": "temperature",
+                "level": "warning",
+                "title": "Eau trop chaude",
+                "message": f"Température de l'eau supérieure au seuil maxi ({max_temp} °C).",
+                "icon": "mdi:thermometer",
+                "badge": "thermometer",
+                "color": "white",
+            })
+
+        # First simple green algae risk heuristic.
+        # It intentionally avoids being too aggressive: warm water + low sanitizer
+        # or weak ORP + high weather factor means surveillance is needed.
+        algae_reasons: list[str] = []
+        warm = water_temp is not None and water_temp >= 26
+        hot = water_temp is not None and water_temp >= 28
+        low_fc = fc is not None and fc < max(0.8, float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC)) * 0.6)
+        low_orp = orp is not None and orp < 650
+        unstable_ph = ph is not None and (ph < 6.9 or ph > 7.8)
+        boosted_weather = weather_factor >= 1.2
+
+        if warm and (low_fc or low_orp or (hot and boosted_weather) or (hot and unstable_ph)):
+            if hot:
+                algae_reasons.append("eau chaude")
+            if low_fc:
+                algae_reasons.append("chlore libre faible")
+            if low_orp:
+                algae_reasons.append("RedOx faible")
+            if boosted_weather:
+                algae_reasons.append("météo favorable au développement")
+            if unstable_ph:
+                algae_reasons.append("pH hors zone idéale")
+            alerts.append({
+                "id": "green_algae_risk",
+                "type": "water_quality",
+                "level": "warning",
+                "title": "Risque d'algues vertes",
+                "message": "Surveillez l'eau : " + ", ".join(algae_reasons) + ".",
+                "icon": "mdi:leaf",
+                "badge": "leaf",
+                "color": "white",
+                "reasons": algae_reasons,
+            })
+
+        return alerts
+
     def _chemistry_status(self, ph: float | None, orp: float | None, fc: float | None) -> tuple[str, list[str]]:
         alerts: list[str] = []
         if ph is None and orp is None and fc is None: return "unknown", alerts
@@ -908,8 +974,12 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
         cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
         hours, weather_factor = self._filter_hours(temp, forecast, cover)
+        pool_alerts = self._build_pool_alerts(temp, ph, orp, fc, weather_factor)
         chemistry_status, alerts = self._chemistry_status(ph, orp, fc)
         recs = self._build_recommendations(ph, fc, orp)
+        for a in pool_alerts:
+            if a.get('title'):
+                alerts.append(str(a.get('title')))
         for rec in recs:
             alerts.append(f"Ajouter {self._fmt_quantity(rec.quantity, rec.unit)} de {rec.product_name}")
         bathing = "unknown"
@@ -964,6 +1034,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             bathing_status=bathing,
             action_summary=" · ".join(actions) if actions else "Aucune action",
             alerts=alerts,
+            pool_alerts=pool_alerts,
             recommendations=recs,
             products=list(self.products.values()),
             last_product_confirmed=self._last_product_confirmed,
