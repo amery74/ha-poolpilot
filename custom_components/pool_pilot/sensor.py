@@ -26,6 +26,8 @@ SENSORS = (
     PoolPilotSensorDescription(key="bathing_status", translation_key="bathing_status", icon="mdi:pool", value_fn=lambda d: d.bathing_status),
     
     PoolPilotSensorDescription(key="pool_alerts", translation_key="pool_alerts", icon="mdi:alert-decagram-outline", value_fn=lambda d: len(d.pool_alerts), attrs_fn=lambda d: {"alerts": d.pool_alerts}),
+    PoolPilotSensorDescription(key="algae_risk", translation_key="algae_risk", icon="mdi:leaf", native_unit_of_measurement="%", value_fn=lambda d: d.algae_risk_score, attrs_fn=lambda d: {"level": d.algae_risk_level}),
+    PoolPilotSensorDescription(key="health_score", translation_key="health_score", icon="mdi:heart-pulse", native_unit_of_measurement="%", value_fn=lambda d: d.health_score, attrs_fn=lambda d: {"alerts": d.pool_alerts}),
     PoolPilotSensorDescription(key="alert_status", translation_key="alert_status", icon="mdi:alert-circle-outline", value_fn=lambda d: "Alerte" if (d.recommendations or d.alerts) else "Aucune alerte", attrs_fn=lambda d: {"alerts": d.alerts, "recommendations": [r.as_dict() for r in d.recommendations]}),
     PoolPilotSensorDescription(key="action_summary", translation_key="action_summary", icon="mdi:clipboard-list-outline", value_fn=lambda d: d.action_summary, attrs_fn=lambda d: {"last_product_confirmed": d.last_product_confirmed, "last_updated": d.last_updated.isoformat() if d.last_updated else None, "recommendations": [r.as_dict() for r in d.recommendations]}),
     PoolPilotSensorDescription(key="ph", translation_key="ph", icon="mdi:ph", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.ph),

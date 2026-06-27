@@ -137,6 +137,9 @@ class PoolPilotData:
     action_summary: str = "Aucune donnée"
     alerts: list[str] = field(default_factory=list)
     pool_alerts: list[dict[str, Any]] = field(default_factory=list)
+    algae_risk_score: float = 0.0
+    algae_risk_level: str = "low"
+    health_score: float = 100.0
     recommendations: list[ProductRecommendation] = field(default_factory=list)
     products: list[ChemicalProduct] = field(default_factory=list)
     last_product_confirmed: str | None = None
@@ -803,6 +806,71 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         hours = max(min_h, min(max_h, base * factor))
         return round(hours, 1), round(factor, 2)
 
+    def _algae_risk(self, water_temp: float | None, ph: float | None, orp: float | None, fc: float | None, weather_factor: float) -> tuple[float, str, list[str]]:
+        score = 0.0
+        reasons: list[str] = []
+
+        if water_temp is not None:
+            if water_temp >= 30:
+                score += 25; reasons.append("eau très chaude")
+            elif water_temp >= 28:
+                score += 18; reasons.append("eau chaude")
+            elif water_temp >= 26:
+                score += 10; reasons.append("eau tiède")
+
+        target_fc = float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC))
+        if fc is not None:
+            if fc < max(0.5, target_fc * 0.4):
+                score += 35; reasons.append("chlore libre très faible")
+            elif fc < max(0.8, target_fc * 0.7):
+                score += 25; reasons.append("chlore libre faible")
+        # If no free chlorine is configured, rely more on ORP.
+        elif orp is None:
+            score += 8; reasons.append("désinfection non mesurée")
+
+        if orp is not None:
+            if orp < 600:
+                score += 35; reasons.append("RedOx très faible")
+            elif orp < 650:
+                score += 22; reasons.append("RedOx faible")
+
+        if ph is not None:
+            if ph < 6.8 or ph > 8.0:
+                score += 15; reasons.append("pH hors plage")
+            elif ph < 7.0 or ph > 7.7:
+                score += 8; reasons.append("pH à surveiller")
+
+        if weather_factor >= 1.35:
+            score += 12; reasons.append("météo très favorable")
+        elif weather_factor >= 1.2:
+            score += 8; reasons.append("météo favorable")
+
+        # Penalize only when the water is warm enough. Cold water should not trigger
+        # a green algae warning by itself.
+        if water_temp is not None and water_temp < 24:
+            score = min(score, 35)
+
+        score = round(max(0.0, min(100.0, score)), 1)
+        if score >= 80:
+            level = "very_high"
+        elif score >= 60:
+            level = "high"
+        elif score >= 35:
+            level = "watch"
+        else:
+            level = "low"
+        return score, level, reasons
+
+    def _health_score(self, chemistry_status: str, algae_score: float, pool_alerts: list[dict[str, Any]]) -> float:
+        score = 100.0
+        if chemistry_status == "warning":
+            score -= 25
+        elif chemistry_status == "unknown":
+            score -= 10
+        score -= min(35, algae_score * 0.35)
+        score -= min(20, len([a for a in pool_alerts if a.get("level") == "warning"]) * 8)
+        return round(max(0.0, min(100.0, score)), 1)
+
     def _build_pool_alerts(self, water_temp: float | None, ph: float | None, orp: float | None, fc: float | None, weather_factor: float) -> list[dict[str, Any]]:
         alerts: list[dict[str, Any]] = []
         min_temp = float(self.option(CONF_WATER_TEMP_ALERT_MIN, DEFAULT_WATER_TEMP_ALERT_MIN))
@@ -832,38 +900,25 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 "color": "white",
             })
 
-        reasons: list[str] = []
-        warm = water_temp is not None and water_temp >= 26
-        hot = water_temp is not None and water_temp >= 28
-        low_fc = fc is not None and fc < max(0.8, float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC)) * 0.6)
-        low_orp = orp is not None and orp < 650
-        unstable_ph = ph is not None and (ph < 6.9 or ph > 7.8)
-        boosted_weather = weather_factor >= 1.2
-
-        if warm and (low_fc or low_orp or (hot and boosted_weather) or (hot and unstable_ph)):
-            if hot:
-                reasons.append("eau chaude")
-            if low_fc:
-                reasons.append("chlore libre faible")
-            if low_orp:
-                reasons.append("RedOx faible")
-            if boosted_weather:
-                reasons.append("météo favorable")
-            if unstable_ph:
-                reasons.append("pH hors zone idéale")
+        algae_score, algae_level, algae_reasons = self._algae_risk(water_temp, ph, orp, fc, weather_factor)
+        threshold = float(self.option(CONF_ALGAE_RISK_SENSITIVITY, DEFAULT_ALGAE_RISK_SENSITIVITY))
+        if algae_score >= threshold:
             alerts.append({
                 "id": "green_algae_risk",
                 "type": "water_quality",
-                "level": "warning",
+                "level": "warning" if algae_score < 80 else "critical",
                 "title": "Risque d'algues vertes",
-                "message": "Surveillez l'eau : " + ", ".join(reasons) + ".",
+                "message": "Surveillez l'eau : " + (", ".join(algae_reasons) if algae_reasons else "conditions favorables") + ".",
                 "icon": "mdi:leaf",
                 "badge": "leaf",
                 "color": "white",
-                "reasons": reasons,
+                "score": algae_score,
+                "risk_level": algae_level,
+                "reasons": algae_reasons,
             })
 
         return alerts
+
 
     def _chemistry_status(self, ph: float | None, orp: float | None, fc: float | None) -> tuple[str, list[str]]:
         alerts: list[str] = []
@@ -1008,6 +1063,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             actions.insert(0, f"Filtration intelligente: {schedule_done or 0} h / {schedule_target or 0} h")
         if auto_active:
             actions.insert(0, f"Filtration auto en cours: {auto_remaining} h restantes")
+        health_score = self._health_score(chemistry_status, algae_score, pool_alerts)
         detail = {"mode": "auto_intelligent", "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M"), "water_temp_c": temp, "forecast_temp_c": forecast, "forecast_source": self._forecast_daily_source, "weather_factor": weather_factor, "base_hours": round((temp / float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))), 2) if temp is not None else None}
         return PoolPilotData(
             water_temp_c=temp,
@@ -1032,6 +1088,9 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             action_summary=" · ".join(actions) if actions else "Aucune action",
             alerts=alerts,
             pool_alerts=pool_alerts,
+            algae_risk_score=algae_score,
+            algae_risk_level=algae_level,
+            health_score=health_score,
             recommendations=recs,
             products=list(self.products.values()),
             last_product_confirmed=self._last_product_confirmed,

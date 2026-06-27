@@ -175,6 +175,12 @@
       },
       "pool_alerts": {
         "name": "Alertes Pool Pilot"
+      },
+      "algae_risk": {
+        "name": "Risque d'algues"
+      },
+      "health_score": {
+        "name": "Indice santé piscine"
       }
     },
     "number": {
@@ -198,6 +204,9 @@
       },
       "water_temp_alert_max": {
         "name": "Seuil eau trop chaude"
+      },
+      "algae_risk_sensitivity": {
+        "name": "Seuil risque d'algues"
       }
     },
     "button": {

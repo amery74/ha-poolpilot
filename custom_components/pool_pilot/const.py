@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "0.5.10"
+VERSION: Final = "0.6.0"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -59,3 +59,6 @@ CONF_WATER_TEMP_ALERT_MIN: Final = "water_temp_alert_min"
 CONF_WATER_TEMP_ALERT_MAX: Final = "water_temp_alert_max"
 DEFAULT_WATER_TEMP_ALERT_MIN: Final = 6.0
 DEFAULT_WATER_TEMP_ALERT_MAX: Final = 31.0
+
+CONF_ALGAE_RISK_SENSITIVITY: Final = "algae_risk_sensitivity"
+DEFAULT_ALGAE_RISK_SENSITIVITY: Final = 60.0
