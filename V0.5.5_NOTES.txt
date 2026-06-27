@@ -1,8 +1,0 @@
-v0.5.5
-
-Carnet d'entretien :
-- stockage persistant d'un journal de maintenance ;
-- entité sensor.<piscine>_carnet_d_entretien / maintenance_journal ;
-- services pool_pilot.add_journal_entry et pool_pilot.remove_journal_entry ;
-- ajout automatique au carnet lors d'un test bandelette ;
-- ajout automatique au carnet lors de la confirmation d'un produit ajouté.

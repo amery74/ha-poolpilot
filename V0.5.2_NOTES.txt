@@ -1,4 +1,0 @@
-v0.5.2
-- Correction activation Auto après 22h.
-- Si le mode Auto est activé après l'heure limite, la pompe ne démarre plus.
-- Le cycle attend la prochaine fenêtre autorisée.

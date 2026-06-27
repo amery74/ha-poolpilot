@@ -832,10 +832,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 "color": "white",
             })
 
-        # First simple green algae risk heuristic.
-        # It intentionally avoids being too aggressive: warm water + low sanitizer
-        # or weak ORP + high weather factor means surveillance is needed.
-        algae_reasons: list[str] = []
+        reasons: list[str] = []
         warm = water_temp is not None and water_temp >= 26
         hot = water_temp is not None and water_temp >= 28
         low_fc = fc is not None and fc < max(0.8, float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC)) * 0.6)
@@ -845,25 +842,25 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
         if warm and (low_fc or low_orp or (hot and boosted_weather) or (hot and unstable_ph)):
             if hot:
-                algae_reasons.append("eau chaude")
+                reasons.append("eau chaude")
             if low_fc:
-                algae_reasons.append("chlore libre faible")
+                reasons.append("chlore libre faible")
             if low_orp:
-                algae_reasons.append("RedOx faible")
+                reasons.append("RedOx faible")
             if boosted_weather:
-                algae_reasons.append("météo favorable au développement")
+                reasons.append("météo favorable")
             if unstable_ph:
-                algae_reasons.append("pH hors zone idéale")
+                reasons.append("pH hors zone idéale")
             alerts.append({
                 "id": "green_algae_risk",
                 "type": "water_quality",
                 "level": "warning",
                 "title": "Risque d'algues vertes",
-                "message": "Surveillez l'eau : " + ", ".join(algae_reasons) + ".",
+                "message": "Surveillez l'eau : " + ", ".join(reasons) + ".",
                 "icon": "mdi:leaf",
                 "badge": "leaf",
                 "color": "white",
-                "reasons": algae_reasons,
+                "reasons": reasons,
             })
 
         return alerts

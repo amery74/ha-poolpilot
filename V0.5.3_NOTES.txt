@@ -1,9 +1,0 @@
-v0.5.3
-
-Test bandelette :
-- stockage persistant des données saisies via pool_pilot.update_strip_test ;
-- réexposition via sensor.pool_pilot_strip_test et ses attributs ;
-- historique ajouté dans sensor.pool_pilot_raw_measurements ;
-- TAC / TH / Stabilisant sont utilisés dans les calculs Pool Pilot ;
-- pH / chlore libre du test bandelette sont utilisés comme valeurs de secours si aucune entité live n'est configurée ;
-- ajout des conversions alkalinity_f et calcium_f en degrés français.
