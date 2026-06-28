@@ -1027,6 +1027,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
         hours, weather_factor = self._filter_hours(temp, forecast, cover)
         pool_alerts = self._build_pool_alerts(temp, ph, orp, fc, weather_factor)
+        algae_score, algae_level, algae_reasons = self._algae_risk(temp, ph, orp, fc, weather_factor)
         chemistry_status, alerts = self._chemistry_status(ph, orp, fc)
         recs = self._build_recommendations(ph, fc, orp)
         for a in pool_alerts:
