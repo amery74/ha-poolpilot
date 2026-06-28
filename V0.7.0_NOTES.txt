@@ -1,8 +1,0 @@
-v0.7.0
-
-Nettoyage architecture alertes :
-- alert_status ne dépend plus des informations internes de filtration ;
-- le bandeau d'alerte ne doit s'activer que si pool_alerts ou recommandations produit existent ;
-- action_summary reste informatif ;
-- ajout de has_active_alert et alert_summary dans le modèle de données ;
-- les informations de filtration ne sont plus traitées comme de vraies alertes.
