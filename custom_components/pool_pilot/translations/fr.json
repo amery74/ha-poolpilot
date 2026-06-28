@@ -171,6 +171,12 @@
       },
       "health_score": {
         "name": "Indice santé piscine"
+      },
+      "auto_filter_remaining_hours": {
+        "name": "Filtration restante"
+      },
+      "auto_schedule_done_hours": {
+        "name": "Filtration effectuée aujourd'hui"
       }
     },
     "number": {

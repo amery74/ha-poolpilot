@@ -147,6 +147,7 @@ class PoolPilotData:
     auto_filter_active: bool = False
     auto_filter_end: datetime | None = None
     auto_filter_remaining_hours: float | None = None
+    auto_filter_summary: str = "idle"
     auto_schedule_enabled: bool = False
     auto_schedule_status: str = "disabled"
     auto_schedule_windows: list[dict[str, str]] = field(default_factory=list)
@@ -1040,11 +1041,14 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             bathing = "ideal" if 24 <= temp <= 30 else "ok"
         elif chemistry_status == "warning":
             bathing = "avoid"
-        actions = []
-        if hours is not None: actions.append(f"Filtration recommandée: {hours} h/j")
-        actions.extend(alerts[:2])
-        if hp_on and pump_on is False: actions.append("PAC active sans pompe détectée: sécurité à vérifier")
-        
+        base_actions = []
+        if hours is not None:
+            base_actions.append("Filtration recommandée")
+        if alerts:
+            base_actions.extend(alerts[:2])
+        if hp_on and pump_on is False:
+            base_actions.append("PAC active sans pompe détectée")
+
         auto_remaining = self._auto_filter_remaining_hours()
         auto_active = auto_remaining is not None and auto_remaining > 0
         schedule_windows = self._schedule_windows_as_dicts() if self._auto_schedule_enabled else []
@@ -1053,17 +1057,25 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         schedule_done = round(self._auto_schedule_seconds_today / 3600, 2) if self._auto_schedule_enabled else None
         start, end = self._allowed_window_today()
         schedule_status = "disabled"
+        auto_filter_summary = "idle"
         if self._auto_schedule_enabled:
             now = dt_util.now()
             if schedule_target is not None and schedule_done is not None and schedule_done >= schedule_target:
                 schedule_status = "done"
+                auto_filter_summary = "Filtration intelligente terminée"
             elif start <= now < end and pump_on is True:
                 schedule_status = "running"
+                auto_filter_summary = "Filtration intelligente en cours"
             else:
                 schedule_status = "waiting"
-            actions.insert(0, f"Filtration intelligente: {schedule_done or 0} h / {schedule_target or 0} h")
+                auto_filter_summary = "Filtration intelligente programmée"
         if auto_active:
-            actions.insert(0, f"Filtration auto en cours: {auto_remaining} h restantes")
+            auto_filter_summary = "Filtration automatique en cours"
+
+        actions = []
+        if auto_filter_summary != "idle":
+            actions.append(auto_filter_summary)
+        actions.extend(base_actions)
         health_score = self._health_score(chemistry_status, algae_score, pool_alerts)
         detail = {"mode": "auto_intelligent", "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M"), "water_temp_c": temp, "forecast_temp_c": forecast, "forecast_source": self._forecast_daily_source, "weather_factor": weather_factor, "base_hours": round((temp / float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))), 2) if temp is not None else None}
         return PoolPilotData(
@@ -1099,6 +1111,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             auto_filter_active=auto_active,
             auto_filter_end=self._auto_filter_end,
             auto_filter_remaining_hours=auto_remaining,
+            auto_filter_summary=auto_filter_summary,
             auto_schedule_enabled=self._auto_schedule_enabled,
             auto_schedule_status=schedule_status,
             auto_schedule_windows=schedule_windows,
