@@ -128,7 +128,7 @@
         "name": "Pool House"
       },
       "alert_status": {
-        "name": "Alerte Pool Pilot"
+        "name": "État des alertes"
       },
       "auto_schedule_status": {
         "name": "Statut filtration automatique"

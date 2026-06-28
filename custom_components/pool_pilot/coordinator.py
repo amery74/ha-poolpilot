@@ -140,6 +140,8 @@ class PoolPilotData:
     algae_risk_score: float = 0.0
     algae_risk_level: str = "low"
     health_score: float = 100.0
+    has_active_alert: bool = False
+    alert_summary: str = "Aucune alerte"
     recommendations: list[ProductRecommendation] = field(default_factory=list)
     products: list[ChemicalProduct] = field(default_factory=list)
     last_product_confirmed: str | None = None
@@ -1077,6 +1079,13 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             actions.append(auto_filter_summary)
         actions.extend(base_actions)
         health_score = self._health_score(chemistry_status, algae_score, pool_alerts)
+        has_active_alert = bool(pool_alerts or recs)
+        if recs:
+            alert_summary = "Recommandation produit"
+        elif pool_alerts:
+            alert_summary = "Alerte Pool Pilot"
+        else:
+            alert_summary = "Aucune alerte"
         detail = {"mode": "auto_intelligent", "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M"), "water_temp_c": temp, "forecast_temp_c": forecast, "forecast_source": self._forecast_daily_source, "weather_factor": weather_factor, "base_hours": round((temp / float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))), 2) if temp is not None else None}
         return PoolPilotData(
             water_temp_c=temp,
@@ -1104,6 +1113,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             algae_risk_score=algae_score,
             algae_risk_level=algae_level,
             health_score=health_score,
+            has_active_alert=has_active_alert,
+            alert_summary=alert_summary,
             recommendations=recs,
             products=list(self.products.values()),
             last_product_confirmed=self._last_product_confirmed,
