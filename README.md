@@ -1,3 +1,5 @@
+<p align="center"><img src="logo.png" alt="Pool Pilot" width="220"></p>
+
 # Pool Pilot v0.5.0
 
 Version avec **filtration auto intelligente**.
