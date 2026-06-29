@@ -1,4 +1,4 @@
-<p align="center"><img src="logo.png" alt="Pool Pilot" width="220"></p>
+<p align="center"><img src="images/logo.png" alt="Pool Pilot" width="260"></p>
 
 # Pool Pilot v0.5.0
 
