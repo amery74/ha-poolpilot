@@ -83,31 +83,19 @@
   "entity": {
     "sensor": {
       "water_temperature": {
-        "name": "Température eau"
+        "name": "Température de l'eau"
       },
       "recommended_filter_hours": {
-        "name": "Durée filtration recommandée"
+        "name": "Durée de filtration recommandée"
       },
       "weather_factor": {
         "name": "Facteur météo"
       },
       "chemistry_status": {
-        "name": "État chimie",
-        "state": {
-          "ok": "OK",
-          "warning": "Attention",
-          "critical": "Critique",
-          "unknown": "Inconnu"
-        }
+        "name": "État chimie"
       },
       "bathing_status": {
-        "name": "État baignade",
-        "state": {
-          "safe": "OK",
-          "warning": "Prudence",
-          "avoid": "Déconseillée",
-          "unknown": "Inconnu"
-        }
+        "name": "État baignade"
       },
       "action_summary": {
         "name": "Actions recommandées"
@@ -133,18 +121,11 @@
       "auto_filter_remaining": {
         "name": "Filtration auto restante"
       },
-      "auto_filter_status": {
-        "name": "Statut filtration auto",
-        "state": {
-          "active": "En cours",
-          "idle": "Inactive"
-        }
-      },
       "auto_schedule_status": {
         "name": "Statut filtration automatique"
       },
       "smart_filtration": {
-        "name": "Filtration intelligente"
+        "name": "État filtration intelligente"
       },
       "strip_test": {
         "name": "Test bandelette"
@@ -197,7 +178,7 @@
         "name": "Chlore libre cible"
       },
       "filter_coef": {
-        "name": "Coefficient filtration"
+        "name": "Coefficient de filtration"
       },
       "min_filter_hours": {
         "name": "Filtration minimum"
@@ -216,18 +197,6 @@
       }
     },
     "button": {
-      "confirm_chlorine": {
-        "name": "Valider ajout chlore"
-      },
-      "confirm_ph_minus": {
-        "name": "Valider pH-"
-      },
-      "confirm_ph_plus": {
-        "name": "Valider pH+"
-      },
-      "confirm_backwash": {
-        "name": "Valider lavage filtre"
-      },
       "start_pump": {
         "name": "Démarrer pompe"
       },
@@ -238,21 +207,15 @@
         "name": "Valider action recommandée"
       },
       "start_auto_filter": {
-        "name": "Filtration auto recommandée"
+        "name": "Démarrer / arrêter filtration automatique"
       },
       "toggle_auto_schedule": {
-        "name": "Basculer filtration automatique"
+        "name": "Basculer filtration intelligente"
       }
     },
     "select": {
       "filtering_mode": {
-        "name": "Mode filtration",
-        "state": {
-          "off": "Arrêt",
-          "manual": "Manuel",
-          "auto": "Automatique",
-          "auto_intelligent": "Auto intelligent"
-        }
+        "name": "Mode de filtration"
       }
     },
     "switch": {
@@ -260,7 +223,7 @@
         "name": "Filtration automatique Pool Pilot"
       },
       "auto_schedule": {
-        "name": "Filtration auto intelligente"
+        "name": "Filtration intelligente"
       }
     }
   }

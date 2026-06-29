@@ -15,10 +15,8 @@ class PoolPilotButtonDescription(ButtonEntityDescription):
     action: str
 
 BUTTONS = (
-    PoolPilotButtonDescription(key="confirm_chlorine", translation_key="confirm_chlorine", action="chlorine", icon="mdi:water-plus"),
-    PoolPilotButtonDescription(key="confirm_ph_minus", translation_key="confirm_ph_minus", action="ph_minus", icon="mdi:minus-circle"),
-    PoolPilotButtonDescription(key="confirm_ph_plus", translation_key="confirm_ph_plus", action="ph_plus", icon="mdi:plus-circle"),
-    PoolPilotButtonDescription(key="confirm_backwash", translation_key="confirm_backwash", action="backwash", icon="mdi:filter-sync"),
+    # Unified validation button. Legacy per-product validation buttons are no longer exposed
+    # because the card validates the current recommended action globally.
     PoolPilotButtonDescription(key="confirm_current_action", translation_key="confirm_current_action", action="current_action", icon="mdi:check-circle-outline"),
     PoolPilotButtonDescription(key="start_auto_filter", translation_key="start_auto_filter", action="start_auto_filter", icon="mdi:timer-play-outline"),
     PoolPilotButtonDescription(key="toggle_auto_schedule", translation_key="toggle_auto_schedule", action="toggle_auto_schedule", icon="mdi:lightning-bolt-auto"),
