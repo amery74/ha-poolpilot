@@ -25,4 +25,8 @@ class PoolPilotFilteringModeSelect(PoolPilotEntity, SelectEntity):
         if option not in FILTERING_MODES: return
         options = dict(self._entry.options); options[CONF_FILTERING_MODE] = option
         self.hass.config_entries.async_update_entry(self._entry, options=options)
+        if option == "auto_intelligent":
+            await self.coordinator.async_set_auto_schedule_enabled(True)
+        else:
+            await self.coordinator.async_set_auto_schedule_enabled(False)
         await self.coordinator.async_request_refresh()

@@ -15,13 +15,8 @@ class PoolPilotButtonDescription(ButtonEntityDescription):
     action: str
 
 BUTTONS = (
-    # Unified validation button. Legacy per-product validation buttons are no longer exposed
-    # because the card validates the current recommended action globally.
     PoolPilotButtonDescription(key="confirm_current_action", translation_key="confirm_current_action", action="current_action", icon="mdi:check-circle-outline"),
     PoolPilotButtonDescription(key="start_auto_filter", translation_key="start_auto_filter", action="start_auto_filter", icon="mdi:timer-play-outline"),
-    PoolPilotButtonDescription(key="toggle_auto_schedule", translation_key="toggle_auto_schedule", action="toggle_auto_schedule", icon="mdi:lightning-bolt-auto"),
-    PoolPilotButtonDescription(key="start_pump", translation_key="start_pump", action="start_pump", icon="mdi:play"),
-    PoolPilotButtonDescription(key="stop_pump", translation_key="stop_pump", action="stop_pump", icon="mdi:stop"),
 )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:

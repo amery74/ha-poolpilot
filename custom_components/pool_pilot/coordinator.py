@@ -144,6 +144,7 @@ class PoolPilotData:
     alert_summary: str = "Aucune alerte"
     correction_active_until: datetime | None = None
     correction_summary: str | None = None
+    vigilance: dict[str, Any] = field(default_factory=dict)
     recommendations: list[ProductRecommendation] = field(default_factory=list)
     products: list[ChemicalProduct] = field(default_factory=list)
     last_product_confirmed: str | None = None
@@ -497,14 +498,39 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             return int(h), int(m)
 
     def _allowed_window_today(self) -> tuple[datetime, datetime]:
+        """Return the daily smart-filtration window centered on the configured hour.
+
+        Example: 16 h target centered on 12:00 gives 04:00 → 20:00.
+        The old fixed 07:00 → 22:00 window is intentionally not used anymore.
+        """
         now = dt_util.now()
         today = now.date()
-        sh, sm = self._parse_time_option(CONF_AUTO_START_TIME, DEFAULT_AUTO_START_TIME)
-        eh, em = self._parse_time_option(CONF_AUTO_END_TIME, DEFAULT_AUTO_END_TIME)
-        start = dt_util.as_local(datetime.combine(today, datetime.min.time())).replace(hour=sh, minute=sm, second=0, microsecond=0)
-        end = dt_util.as_local(datetime.combine(today, datetime.min.time())).replace(hour=eh, minute=em, second=0, microsecond=0)
-        if end <= start:
-            end = start + timedelta(hours=15)
+        target = 0.0
+        try:
+            # Avoid recursion from _auto_schedule_target_hours by reading the current data
+            # or doing a direct calculation when needed.
+            data = self.data or self._calculate()
+            target = float(data.recommended_filter_hours or 0.0)
+        except Exception:
+            target = 0.0
+        if target <= 0:
+            target = 0.1
+        target = min(24.0, max(0.1, target))
+        center_hour = float(self.option(CONF_FILTRATION_CENTER_HOUR, DEFAULT_FILTRATION_CENTER_HOUR))
+        center_hour = max(0.0, min(23.5, center_hour))
+        base = dt_util.as_local(datetime.combine(today, datetime.min.time())).replace(second=0, microsecond=0)
+        center = base + timedelta(hours=center_hour)
+        start = center - timedelta(hours=target / 2)
+        end = center + timedelta(hours=target / 2)
+        # Keep the window on the same day where possible; clamp very long windows to 00:00 → 23:59.
+        day_start = base
+        day_end = base + timedelta(days=1)
+        if start < day_start:
+            end = min(day_end, end + (day_start - start))
+            start = day_start
+        if end > day_end:
+            start = max(day_start, start - (end - day_end))
+            end = day_end
         return start, end
 
     def _reset_auto_day_if_needed(self) -> None:
@@ -516,12 +542,13 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._auto_schedule_owns_pump = False
 
     def _auto_schedule_target_hours(self) -> float:
-        """Return the smart daily target, capped to the configured allowed window."""
+        """Return the smart daily target, capped to 24h.
+
+        The actual run window is centered around the configured center hour.
+        """
         data = self.data or self._calculate()
         target = float(data.recommended_filter_hours or 0.0)
-        start, end = self._allowed_window_today()
-        max_window = max(0.1, (end - start).total_seconds() / 3600)
-        return round(max(0.0, min(target, max_window)), 2)
+        return round(max(0.0, min(target, 24.0)), 2)
 
     def _today_schedule_windows(self) -> list[tuple[datetime, datetime]]:
         """Auto intelligent uses one allowed daily window.
@@ -561,7 +588,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
     async def _async_auto_schedule_tick(self, now: datetime) -> None:
         """Auto intelligent daily filtration.
 
-        Enabled once, it runs every day between 07:00 and 22:00 by default,
+        Enabled once, it runs every day in a window centered on the configured hour,
         until the smart target computed from water temperature and weather is met.
         """
         pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
@@ -606,18 +633,6 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._auto_filter_unsub = None
 
         self._auto_filter_start = dt_util.now()
-
-        # Auto intelligent: ne jamais démarrer après l'heure de fin autorisée (22h par défaut)
-        end_cfg = self.option(CONF_AUTO_END_TIME, DEFAULT_AUTO_END_TIME)
-        try:
-            end_hour, end_min = [int(x) for x in str(end_cfg).split(":")]
-            now = self._auto_filter_start
-            if (now.hour, now.minute) >= (end_hour, end_min):
-                self._auto_filter_end = None
-                await self.async_request_refresh()
-                return
-        except Exception:
-            pass
 
         self._auto_filter_end = self._auto_filter_start + timedelta(hours=hours)
         await self.hass.services.async_call("homeassistant", "turn_on", {"entity_id": pump}, blocking=True)
@@ -865,6 +880,92 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         else:
             level = "low"
         return score, level, reasons
+
+    def _build_vigilance(self, temp: float | None, ph: float | None, orp: float | None, fc: float | None, algae_score: float, algae_level: str, weather_factor: float, chemistry_status: str) -> dict[str, Any]:
+        """Explain why Pool Pilot may be in vigilance even without a hard alert."""
+        points: list[dict[str, Any]] = []
+        score = 0.0
+
+        def add(kind: str, title: str, message: str, value: Any = None, contribution: float = 0.0, icon: str = "mdi:alert-circle-outline") -> None:
+            nonlocal score
+            contribution = max(0.0, float(contribution))
+            score += contribution
+            points.append({
+                "id": kind,
+                "title": title,
+                "message": message,
+                "value": value,
+                "contribution": round(contribution, 1),
+                "icon": icon,
+            })
+
+        if temp is not None:
+            if temp >= 30:
+                add("hot_water", "Eau très chaude", "La température augmente la consommation de désinfectant et le risque d’algues.", f"{round(temp,1)} °C", 28, "mdi:thermometer-alert")
+            elif temp >= 28:
+                add("warm_water", "Eau chaude", "L’eau est chaude : le risque biologique augmente si le chlore baisse.", f"{round(temp,1)} °C", 18, "mdi:thermometer")
+            elif temp >= 26:
+                add("mild_warm_water", "Température à surveiller", "L’eau est dans une zone favorable à une consommation plus rapide du chlore.", f"{round(temp,1)} °C", 8, "mdi:thermometer")
+
+        if ph is not None:
+            target = float(self.option(CONF_TARGET_PH, DEFAULT_TARGET_PH))
+            if ph >= 7.7 or ph <= 7.0:
+                add("ph_near_limit", "pH proche d’une limite", "Le pH reste exploitable mais s’éloigne de la cible.", round(ph,2), 16, "mdi:ph")
+            elif abs(ph - target) >= 0.25:
+                add("ph_drift", "pH en dérive", "Le pH s’éloigne progressivement de la valeur cible.", round(ph,2), 8, "mdi:ph")
+
+        if fc is not None:
+            target_fc = float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC))
+            if fc < max(0.8, target_fc * 0.75):
+                add("chlorine_near_low", "Chlore proche de la limite basse", "Le chlore est encore utilisable mais la marge de sécurité diminue.", f"{round(fc,2)} ppm", 18, "mdi:water-plus")
+            elif fc < target_fc:
+                add("chlorine_below_target", "Chlore sous la cible", "Le chlore est légèrement inférieur à la cible configurée.", f"{round(fc,2)} ppm", 8, "mdi:water-plus")
+        elif orp is not None:
+            if orp < 680:
+                add("orp_watch", "RedOx à surveiller", "Le RedOx n’est pas critique, mais il est proche d’une zone moins confortable.", f"{round(orp)} mV", 14, "mdi:chart-bell-curve")
+            elif orp < 720:
+                add("orp_margin", "Marge RedOx limitée", "La désinfection semble correcte mais la marge n’est pas très élevée.", f"{round(orp)} mV", 6, "mdi:chart-bell-curve")
+
+        if algae_score >= 45:
+            add("algae_risk_watch", "Risque d’algues en hausse", "Le score algues reste sous le seuil d’alerte mais progresse.", f"{round(algae_score,1)} %", 20, "mdi:leaf")
+        elif algae_score >= 30:
+            add("algae_risk_low_watch", "Risque biologique à surveiller", "Les conditions commencent à devenir favorables au développement d’algues.", f"{round(algae_score,1)} %", 10, "mdi:leaf")
+
+        if weather_factor >= 1.25:
+            add("weather_factor", "Météo défavorable", "La météo augmente le besoin de filtration ou de surveillance.", round(weather_factor,2), 12, "mdi:weather-partly-cloudy")
+
+        if chemistry_status == "unknown":
+            add("missing_data", "Données incomplètes", "Certaines mesures sont absentes, Pool Pilot reste prudent.", None, 10, "mdi:help-circle-outline")
+
+        score = round(max(0.0, min(100.0, score)), 1)
+        if score >= 60:
+            level = "high"
+            title = "Vigilance renforcée"
+        elif score >= 30:
+            level = "watch"
+            title = "Vigilance en cours"
+        else:
+            level = "ok"
+            title = "Tout va bien"
+
+        summary = "Aucun seuil critique n’est dépassé." if level != "ok" else "Aucun point de vigilance significatif détecté."
+        if points and level != "ok":
+            summary = "Pool Pilot surveille plusieurs indicateurs proches de leur zone de vigilance."
+
+        return {
+            "active": level != "ok",
+            "score": score,
+            "level": level,
+            "title": title,
+            "summary": summary,
+            "points": points,
+            "why_not_alert": "Les seuils d’alerte ne sont pas franchis. Aucune correction urgente n’est nécessaire." if level != "ok" else "",
+            "advice": [
+                "Maintenir la filtration automatique.",
+                "Contrôler l’évolution demain ou après la prochaine mesure.",
+                "Vérifier pH et chlore si la température continue de monter.",
+            ] if level != "ok" else [],
+        }
 
     def _health_score(self, chemistry_status: str, algae_score: float, pool_alerts: list[dict[str, Any]]) -> float:
         score = 100.0
@@ -1151,6 +1252,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             actions.append(auto_filter_summary)
         actions.extend(base_actions)
         health_score = self._health_score(chemistry_status, algae_score, pool_alerts)
+        vigilance = self._build_vigilance(temp, ph, orp, fc, algae_score, algae_level, weather_factor, chemistry_status)
         has_active_alert = bool(pool_alerts or recs)
         if recs:
             alert_summary = "Recommandation produit"
@@ -1191,6 +1293,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             alert_summary=alert_summary,
             correction_active_until=correction_active_until,
             correction_summary=correction_summary,
+            vigilance=vigilance,
             recommendations=recs,
             products=list(self.products.values()),
             last_product_confirmed=self._last_product_confirmed,

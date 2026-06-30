@@ -26,8 +26,8 @@ SWITCHES = (
 )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    coordinator: PoolPilotCoordinator = entry.runtime_data
-    async_add_entities([PoolPilotAutoFilterSwitch(coordinator, SWITCHES[0]), PoolPilotAutoScheduleSwitch(coordinator, SWITCHES[1])])
+    # v0.8.3 cleanup: no extra switch entities are exposed.
+    return
 
 class PoolPilotAutoFilterSwitch(PoolPilotEntity, SwitchEntity):
     entity_description: PoolPilotSwitchDescription

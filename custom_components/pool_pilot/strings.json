@@ -168,6 +168,9 @@
       },
       "auto_schedule_done_hours": {
         "name": "Filtration effectuée aujourd'hui"
+      },
+      "vigilance": {
+        "name": "Vigilance Pool Pilot"
       }
     },
     "number": {
@@ -194,37 +197,24 @@
       },
       "algae_risk_sensitivity": {
         "name": "Seuil risque d'algues"
+      },
+      "filtration_center_hour": {
+        "name": "Heure centrale filtration"
       }
     },
     "button": {
-      "start_pump": {
-        "name": "Démarrer pompe"
-      },
-      "stop_pump": {
-        "name": "Arrêter pompe"
-      },
       "confirm_current_action": {
         "name": "Valider action recommandée"
       },
       "start_auto_filter": {
-        "name": "Démarrer / arrêter filtration automatique"
-      },
-      "toggle_auto_schedule": {
-        "name": "Basculer filtration intelligente"
+        "name": "Lancer filtration recommandée"
       }
     },
     "select": {
       "filtering_mode": {
-        "name": "Mode de filtration"
+        "name": "Mode filtration"
       }
     },
-    "switch": {
-      "auto_filter": {
-        "name": "Filtration automatique Pool Pilot"
-      },
-      "auto_schedule": {
-        "name": "Filtration intelligente"
-      }
-    }
+    "switch": {}
   }
 }
