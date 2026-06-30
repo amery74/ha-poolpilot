@@ -1022,7 +1022,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
     def _shock_chlorine_recommendation(self) -> tuple[str | None, float | None, str | None]:
         # Prefer a product explicitly configured as shock/chlore choc in Pool House.
-        volume = float(self.option(CONF_POOL_VOLUME, DEFAULT_POOL_VOLUME))
+        volume = float(self.option(CONF_VOLUME_M3, DEFAULT_VOLUME_M3))
         for p in self.products.values():
             name = (p.name or "").lower()
             cat = (p.category or "").lower()
