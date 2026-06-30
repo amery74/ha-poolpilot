@@ -11,6 +11,6 @@
   "requirements": [
     "pypoolchem>=0.1.1"
   ],
-  "version": "0.8.8",
+  "version": "0.8.9",
   "issue_tracker": "https://github.com/amery74/ha-poolpilot/issues"
 }

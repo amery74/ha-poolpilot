@@ -1204,6 +1204,9 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
         cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
         hours, weather_factor = self._filter_hours(temp, forecast, cover)
+        # Meteo-France yellow vigilance is informational only. Pool Pilot alerts are
+        # built from pool chemistry/temperature/algae conditions here; storm weather
+        # must only become a Pool Pilot alert from orange level or higher in the card/integration logic.
         pool_alerts = self._build_pool_alerts(temp, ph, orp, fc, weather_factor)
         algae_score, algae_level, algae_reasons = self._algae_risk(temp, ph, orp, fc, weather_factor)
         chemistry_status, alerts = self._chemistry_status(ph, orp, fc)

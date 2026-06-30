@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription, SensorDeviceClass, SensorStateClass
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature, PERCENTAGE
 from homeassistant.core import HomeAssistant
@@ -36,7 +37,7 @@ SENSORS = (
     PoolPilotSensorDescription(key="free_chlorine", translation_key="free_chlorine", native_unit_of_measurement="ppm", icon="mdi:water-plus", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.free_chlorine),
     PoolPilotSensorDescription(key="product_recommendation", translation_key="product_recommendation", icon="mdi:flask-plus", value_fn=lambda d: (f"Ajouter {round(d.recommendations[0].quantity, 2)} {d.recommendations[0].unit} de {d.recommendations[0].product_name}" if d.recommendations else "Aucune recommandation produit"), attrs_fn=lambda d: {"recommendations": [r.as_dict() for r in d.recommendations]}),
     PoolPilotSensorDescription(key="pool_house", translation_key="pool_house", icon="mdi:home-silo", value_fn=lambda d: len(d.products), attrs_fn=lambda d: {"products": [p.as_dict() for p in d.products]}),
-    PoolPilotSensorDescription(key="raw_measurements", translation_key="raw_measurements", icon="mdi:table", value_fn=lambda d: len(d.raw_measurements), attrs_fn=lambda d: {"measurements": d.raw_measurements}),
+    PoolPilotSensorDescription(key="raw_measurements", translation_key="raw_measurements", entity_category=EntityCategory.DIAGNOSTIC, icon="mdi:table", value_fn=lambda d: len(d.raw_measurements), attrs_fn=lambda d: {"measurements": d.raw_measurements}),
     PoolPilotSensorDescription(key="maintenance_journal", translation_key="maintenance_journal", icon="mdi:timeline-clock-outline", value_fn=lambda d: len(d.maintenance_journal), attrs_fn=lambda d: {"entries": d.maintenance_journal[:100]}),
 )
 
@@ -49,6 +50,8 @@ class PoolPilotSensor(PoolPilotEntity, SensorEntity):
     def __init__(self, coordinator: PoolPilotCoordinator, description: PoolPilotSensorDescription) -> None:
         super().__init__(coordinator, description.key)
         self.entity_description = description
+        if description.key == "strip_test":
+            self._attr_name = "Test bandelette"
     @property
     def native_value(self) -> Any:
         if not self.coordinator.data:

@@ -147,6 +147,9 @@
       },
       "vigilance": {
         "name": "Vigilance Pool Pilot"
+      },
+      "raw_measurements": {
+        "name": "Historique mesures"
       }
     },
     "number": {
