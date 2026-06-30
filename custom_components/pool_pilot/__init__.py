@@ -68,6 +68,7 @@ UPDATE_STRIP_TEST_SCHEMA = vol.Schema({
     vol.Optional("free_chlorine"): vol.Any(None, vol.Coerce(float)),
     vol.Optional("total_chlorine"): vol.Any(None, vol.Coerce(float)),
     vol.Optional("temperature"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("air_temperature"): vol.Any(None, vol.Coerce(float)),
 })
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:

@@ -331,6 +331,15 @@ update_strip_test:
           step: 0.1
           unit_of_measurement: ppm
           mode: box
+    air_temperature:
+      name: Température de l'air
+      selector:
+        number:
+          min: -30
+          max: 60
+          step: 0.1
+          unit_of_measurement: °C
+          mode: box
     temperature:
       name: Température
       selector:

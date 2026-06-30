@@ -417,6 +417,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             "free_chlorine": ("free_chlorine", "chlorine_free", "chlore_libre", "strip_free_chlorine"),
             "total_chlorine": ("total_chlorine", "chlorine_total", "chlore_total", "strip_total_chlorine"),
             "temperature": ("temperature", "temp", "strip_temperature"),
+            "air_temperature": ("air_temperature", "air_temp", "temperature_air", "strip_air_temperature"),
         }
 
         cleaned: dict[str, Any] = {
@@ -451,6 +452,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             "ph": cleaned.get("ph", self._float(self.config_entry.data.get(CONF_PH_ENTITY))),
             "orp": self._float(self.config_entry.data.get(CONF_ORP_ENTITY)),
             "temp": cleaned.get("temperature", self._temp_c(self.config_entry.data.get(CONF_TEMP_ENTITY))),
+            "air_temperature": cleaned.get("air_temperature"),
             "alkalinity": cleaned.get("alkalinity"),
             "calcium": cleaned.get("calcium"),
             "cya": cleaned.get("cya"),
