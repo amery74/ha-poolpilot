@@ -1090,21 +1090,20 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         return ["Suivez les recommandations Pool Pilot."]
 
     def _shock_chlorine_recommendation(self) -> tuple[str | None, float | None, str | None]:
-        # Prefer a product explicitly configured as shock/chlore choc in Pool House.
-        volume = float(self.option(CONF_VOLUME_M3, DEFAULT_VOLUME_M3))
-        for p in self.products.values():
-            name = (p.name or "").lower()
-            cat = (p.category or "").lower()
-            if "choc" in name or "shock" in name or ("chlore" in name and ("choc" in cat or "shock" in cat)):
-                dose = None
-                try:
-                    dose = float(p.dosage_per_m3)
-                except Exception:
-                    dose = None
-                if dose and dose > 0:
-                    return p.name, round(dose * volume, 2), p.dosage_unit
-                return p.name, None, p.dosage_unit
-        return None, None, None
+        """Return the preferred shock product and dose for the pool volume."""
+        product = self._best_product("chlorine_shock") or self._best_product("chlorine_liquid")
+        if product is None:
+            # Fallback for products created before category split.
+            for p in self.products.values():
+                name = (p.name or "").lower()
+                cat = normalize_product_category(p.category or "").lower()
+                if "choc" in name or "shock" in name or cat == "chlorine_shock":
+                    product = p
+                    break
+        if product is None:
+            return None, None, None
+        qty = self._dose_for_product(product, 1.0)
+        return product.name, round(qty, 2) if qty else None, product.dosage_unit
 
     def _build_pool_alerts(self, water_temp: float | None, ph: float | None, orp: float | None, fc: float | None, weather_factor: float) -> list[dict[str, Any]]:
         alerts: list[dict[str, Any]] = []
@@ -1215,7 +1214,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             return 0.0
         return product.dosage_quantity * (volume / product.volume_basis_m3) * delta_steps
 
-    def _build_recommendations(self, ph: float | None, fc: float | None, orp: float | None) -> list[ProductRecommendation]:
+    def _build_recommendations(self, ph: float | None, fc: float | None, orp: float | None, algae_score: float | None = None) -> list[ProductRecommendation]:
         recs: list[ProductRecommendation] = []
         target_ph = float(self.option(CONF_TARGET_PH, DEFAULT_TARGET_PH))
         target_fc = float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC))
@@ -1245,14 +1244,14 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"RedOx bas ({orp:.0f} mV), désinfection à renforcer.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
         # En cas de risque d'algues élevé, privilégier un chlore choc s'il est configuré.
         try:
-            algae_score = float((self.data.algae_risk_score if self.data else 0) or 0)
+            current_algae_score = float(algae_score or 0)
         except Exception:
-            algae_score = 0.0
-        if algae_score >= float(self.option(CONF_ALGAE_RISK_SENSITIVITY, DEFAULT_ALGAE_RISK_SENSITIVITY)):
+            current_algae_score = 0.0
+        if current_algae_score >= float(self.option(CONF_ALGAE_RISK_SENSITIVITY, DEFAULT_ALGAE_RISK_SENSITIVITY)):
             shock = self._best_product("chlorine_shock") or self._best_product("chlorine_liquid")
             if shock and not any(r.product_id == shock.id for r in recs):
                 qty = self._dose_for_product(shock, 1.0)
-                recs.append(ProductRecommendation(shock.id, shock.name, shock.category, qty, shock.dosage_unit, "Risque d’algues élevé : traitement choc recommandé.", aftercare="Laissez la filtration fonctionner et contrôlez le chlore après traitement.", stock_after=(shock.stock_quantity - qty) if shock.stock_quantity is not None and shock.stock_unit == shock.dosage_unit else None, stock_unit=shock.stock_unit))
+                recs.insert(0, ProductRecommendation(shock.id, shock.name, shock.category, qty, shock.dosage_unit, "Risque d’algues élevé : traitement choc recommandé.", aftercare="Laissez la filtration fonctionner 24 à 48 h et contrôlez le chlore après traitement.", stock_after=(shock.stock_quantity - qty) if shock.stock_quantity is not None and shock.stock_unit == shock.dosage_unit else None, stock_unit=shock.stock_unit))
         return recs
 
     def _strip_or_entity_float(self, strip_key: str, entity_id: str | None, prefer_strip: bool = False) -> float | None:
