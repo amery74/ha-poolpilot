@@ -1164,6 +1164,47 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         return alerts
 
 
+
+    def _record_live_measurement(self, ph: float | None, orp: float | None, temp: float | None, fc: float | None) -> None:
+        """Store the latest live sensor/Flipr measurement in raw_measurements.
+
+        A row is added only when values change enough or after a short interval,
+        so history follows real sensor updates without filling with duplicates.
+        """
+        now = dt_util.now()
+        row = {
+            "datetime": now.strftime("%d/%m %H:%M"),
+            "updated_at": now.isoformat(),
+            "source": "live",
+            "ph": round(ph, 2) if ph is not None else None,
+            "orp": round(orp, 1) if orp is not None else None,
+            "temp": round(temp, 2) if temp is not None else None,
+            "free_chlorine": round(fc, 2) if fc is not None else None,
+        }
+        if row["ph"] is None and row["orp"] is None and row["temp"] is None and row["free_chlorine"] is None:
+            return
+
+        last = self.raw_measurements[0] if self.raw_measurements else None
+        should_add = True
+        if last and last.get("source") == "live":
+            try:
+                last_time = dt_util.parse_datetime(str(last.get("updated_at") or "")) if last.get("updated_at") else None
+            except Exception:
+                last_time = None
+            age = (now - dt_util.as_local(last_time)).total_seconds() if last_time else 999999
+            same = (
+                last.get("ph") == row["ph"]
+                and last.get("orp") == row["orp"]
+                and last.get("temp") == row["temp"]
+                and last.get("free_chlorine") == row["free_chlorine"]
+            )
+            # Avoid duplicates while still keeping a regular trace if sensors refresh unchanged.
+            should_add = (not same) or age >= 15 * 60
+
+        if should_add:
+            self.raw_measurements.insert(0, row)
+            self.raw_measurements = self.raw_measurements[:50]
+
     def _chemistry_status(self, ph: float | None, orp: float | None, fc: float | None) -> tuple[str, list[str]]:
         alerts: list[str] = []
         if ph is None and orp is None and fc is None: return "unknown", alerts
@@ -1281,6 +1322,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
         cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
         hours, weather_factor = self._filter_hours(temp, forecast, cover)
+        self._record_live_measurement(ph, orp, temp, fc)
+
         # Meteo-France yellow vigilance is informational only. Pool Pilot alerts are
         # built from pool chemistry/temperature/algae conditions here; storm weather
         # must only become a Pool Pilot alert from orange level or higher in the card/integration logic.
