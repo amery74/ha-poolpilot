@@ -23,7 +23,7 @@ add_product:
             - label: pH plus
               value: ph_plus
             - label: Chlore / désinfectant
-              value: chlorine
+              value: chlorine_slow
             - label: Brome
               value: bromine
             - label: Alcalinité
@@ -136,7 +136,7 @@ update_product:
             - label: pH plus
               value: ph_plus
             - label: Chlore / désinfectant
-              value: chlorine
+              value: chlorine_slow
             - label: Brome
               value: bromine
             - label: Anti-algues
@@ -313,7 +313,7 @@ update_strip_test:
           step: 1
           unit_of_measurement: ppm
           mode: box
-    free_chlorine:
+    free_chlorine_slow:
       name: Chlore libre
       selector:
         number:
@@ -322,7 +322,7 @@ update_strip_test:
           step: 0.1
           unit_of_measurement: ppm
           mode: box
-    total_chlorine:
+    total_chlorine_slow:
       name: Chlore total
       selector:
         number:

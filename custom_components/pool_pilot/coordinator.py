@@ -15,6 +15,51 @@ from .const import *
 
 _LOGGER = logging.getLogger(__name__)
 BAD_STATES = {STATE_UNKNOWN, STATE_UNAVAILABLE, None, ""}
+
+PRODUCT_CATEGORY_ALIASES = {
+    "chlorine": "chlorine_slow",
+    "chlore": "chlorine_slow",
+    "slow_chlorine": "chlorine_slow",
+    "chlore_lent": "chlorine_slow",
+    "shock_chlorine": "chlorine_shock",
+    "chlore_choc": "chlorine_shock",
+    "liquid_chlorine": "chlorine_liquid",
+    "chlore_liquide": "chlorine_liquid",
+    "anti_algae": "algaecide",
+    "anti_algues": "algaecide",
+    "tac_plus": "alkalinity",
+    "tac_minus": "alkalinity_minus",
+    "th_plus": "hardness_plus",
+    "th_minus": "hardness_minus",
+    "oxygen": "active_oxygen",
+    "oxygene_actif": "active_oxygen",
+}
+
+PRODUCT_CATEGORY_LABELS = {
+    "ph_minus": "pH-",
+    "ph_plus": "pH+",
+    "chlorine_slow": "Chlore lent",
+    "chlorine_shock": "Chlore choc",
+    "chlorine_liquid": "Chlore liquide",
+    "bromine": "Brome",
+    "active_oxygen": "Oxygène actif",
+    "alkalinity": "TAC+",
+    "alkalinity_minus": "TAC-",
+    "hardness_plus": "TH+",
+    "hardness_minus": "TH-",
+    "stabilizer": "Stabilisant",
+    "algaecide": "Anti-algues",
+    "clarifier": "Clarifiant",
+    "flocculant": "Floculant",
+    "wintering": "Hivernage",
+    "salt": "Sel",
+    "other": "Autre",
+}
+
+def normalize_product_category(category: Any) -> str:
+    raw = str(category or "other").strip()
+    return PRODUCT_CATEGORY_ALIASES.get(raw, raw)
+
 STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}_pool_house"
 
@@ -49,9 +94,7 @@ class ChemicalProduct:
             if data.get(key) not in (None, ""):
                 notes_payload[key] = data.get(key)
         notes = json.dumps(notes_payload, ensure_ascii=False) if notes_payload else None
-        category = str(data.get("category") or data.get("product_type") or "other")
-        if category == "anti_algae":
-            category = "algaecide"
+        category = normalize_product_category(data.get("category") or data.get("product_type") or "other")
         return cls(
             id=str(data.get("id") or uuid.uuid4().hex[:10]),
             name=str(data.get("name") or "Produit"),
@@ -78,6 +121,8 @@ class ChemicalProduct:
             "id": self.id,
             "name": self.name,
             "category": self.category,
+            "category_label": PRODUCT_CATEGORY_LABELS.get(self.category, self.category),
+            "category_label": PRODUCT_CATEGORY_LABELS.get(self.category, self.category),
             "dosage_quantity": self.dosage_quantity,
             "dosage_unit": self.dosage_unit,
             "volume_basis_m3": self.volume_basis_m3,
@@ -1157,9 +1202,10 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         return None
 
     def _first_recommendation_for_category(self, category: str) -> ProductRecommendation | None:
+        category = normalize_product_category(category)
         data = self.data or self._calculate()
         for rec in data.recommendations:
-            if rec.category == category:
+            if normalize_product_category(rec.category) == category:
                 return rec
         return None
 
@@ -1186,17 +1232,27 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 qty = self._dose_for_product(product, steps)
                 recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"pH actuel {ph:.2f}, cible {target_ph:.2f}.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
         if fc is not None and fc < target_fc * 0.75:
-            product = self._best_product("chlorine")
+            product = self._best_product("chlorine_slow") or self._best_product("chlorine_liquid") or self._best_product("bromine") or self._best_product("active_oxygen")
             if product:
                 delta = max(target_fc - fc, 0.1)
                 steps = delta / (product.effect_delta or 1.0)
                 qty = self._dose_for_product(product, steps)
                 recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"Chlore libre {fc:.2f} ppm, cible {target_fc:.2f} ppm.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
         elif fc is None and orp is not None and orp < 650:
-            product = self._best_product("chlorine")
+            product = self._best_product("chlorine_slow") or self._best_product("chlorine_liquid") or self._best_product("bromine") or self._best_product("active_oxygen")
             if product:
                 qty = self._dose_for_product(product, 1.0)
                 recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"RedOx bas ({orp:.0f} mV), désinfection à renforcer.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
+        # En cas de risque d'algues élevé, privilégier un chlore choc s'il est configuré.
+        try:
+            algae_score = float((self.data.algae_risk_score if self.data else 0) or 0)
+        except Exception:
+            algae_score = 0.0
+        if algae_score >= float(self.option(CONF_ALGAE_RISK_SENSITIVITY, DEFAULT_ALGAE_RISK_SENSITIVITY)):
+            shock = self._best_product("chlorine_shock") or self._best_product("chlorine_liquid")
+            if shock and not any(r.product_id == shock.id for r in recs):
+                qty = self._dose_for_product(shock, 1.0)
+                recs.append(ProductRecommendation(shock.id, shock.name, shock.category, qty, shock.dosage_unit, "Risque d’algues élevé : traitement choc recommandé.", aftercare="Laissez la filtration fonctionner et contrôlez le chlore après traitement.", stock_after=(shock.stock_quantity - qty) if shock.stock_quantity is not None and shock.stock_unit == shock.dosage_unit else None, stock_unit=shock.stock_unit))
         return recs
 
     def _strip_or_entity_float(self, strip_key: str, entity_id: str | None, prefer_strip: bool = False) -> float | None:

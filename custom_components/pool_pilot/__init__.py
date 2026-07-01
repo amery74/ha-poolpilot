@@ -18,7 +18,7 @@ type PoolPilotConfigEntry = ConfigEntry[PoolPilotCoordinator]
 ADD_PRODUCT_SCHEMA = vol.Schema({
     vol.Optional("id"): cv.string,
     vol.Required("name"): cv.string,
-    vol.Optional("category", default="other"): vol.In(["ph_minus", "ph_plus", "chlorine", "bromine", "alkalinity", "stabilizer", "algaecide", "anti_algae", "wintering", "salt", "other"]),
+    vol.Optional("category", default="other"): vol.In(["ph_minus", "ph_plus", "chlorine", "chlorine_slow", "chlorine_shock", "chlorine_liquid", "bromine", "active_oxygen", "alkalinity", "alkalinity_minus", "hardness_plus", "hardness_minus", "stabilizer", "algaecide", "clarifier", "flocculant", "anti_algae", "wintering", "salt", "other"]),
     vol.Required("dosage_quantity"): vol.Coerce(float),
     vol.Required("dosage_unit"): cv.string,
     vol.Optional("volume_basis_m3", default=10.0): vol.Coerce(float),
