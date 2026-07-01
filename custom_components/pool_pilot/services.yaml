@@ -245,7 +245,7 @@ remove_product:
 
 start_auto_filtration:
   name: Démarrer la filtration automatique
-  description: Démarre la pompe pour la durée recommandée par Pool Pilot, puis l’arrête automatiquement.
+  description: Active la filtration automatique/intelligente Pool Pilot. Si une durée est forcée, démarre seulement un cycle manuel temporisé.
   fields:
     duration_hours:
       name: Durée forcée
@@ -260,7 +260,7 @@ start_auto_filtration:
 
 stop_auto_filtration:
   name: Arrêter la filtration automatique
-  description: Annule le cycle automatique et arrête la pompe.
+  description: Désactive la filtration automatique/intelligente Pool Pilot et arrête la pompe si Pool Pilot la pilote.
 
 enable_auto_schedule:
   name: Activer la planification filtration

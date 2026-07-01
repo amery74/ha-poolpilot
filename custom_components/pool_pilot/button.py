@@ -36,10 +36,10 @@ class PoolPilotButton(PoolPilotEntity, ButtonEntity):
             return
         if action == "start_auto_filter":
             try:
-                if self.coordinator.data and self.coordinator.data.auto_filter_active:
-                    await self.coordinator.async_stop_auto_filter(turn_off=True)
+                if self.coordinator.data and self.coordinator.data.auto_schedule_enabled:
+                    await self.coordinator.async_stop_recommended_filtration(turn_off=True)
                 else:
-                    await self.coordinator.async_start_auto_filter()
+                    await self.coordinator.async_start_recommended_filtration()
             except ValueError as err:
                 raise HomeAssistantError(str(err)) from err
             return

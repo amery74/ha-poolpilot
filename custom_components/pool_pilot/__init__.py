@@ -100,11 +100,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
     async def start_auto_filtration(call: ServiceCall) -> None:
         c = await _coordinator()
-        await c.async_start_auto_filter(call.data.get("duration_hours"))
+        if call.data.get("duration_hours") is not None:
+            await c.async_start_auto_filter(call.data.get("duration_hours"))
+        else:
+            await c.async_start_recommended_filtration()
 
     async def stop_auto_filtration(call: ServiceCall) -> None:
         c = await _coordinator()
-        await c.async_stop_auto_filter(turn_off=True)
+        await c.async_stop_recommended_filtration(turn_off=True)
 
     async def enable_auto_schedule(call: ServiceCall) -> None:
         c = await _coordinator()

@@ -619,6 +619,28 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._auto_schedule_owns_pump = False
         self.async_set_updated_data(self._calculate())
 
+    async def async_start_recommended_filtration(self) -> None:
+        """Enable the smart recommended filtration schedule and apply it immediately.
+
+        This is the action behind "Lancer filtration recommandée":
+        it must not only turn on the pump manually, it must enable Pool Pilot's
+        automatic/intelligent scheduler so the state becomes active and the
+        daily centered filtration logic owns the pump.
+        """
+        self._auto_schedule_enabled = True
+        await self.async_save_products()
+        await self._async_auto_schedule_tick(dt_util.now())
+        await self.async_request_refresh()
+
+    async def async_stop_recommended_filtration(self, turn_off: bool = True) -> None:
+        """Disable the smart recommended filtration schedule and optionally stop the pump."""
+        self._auto_schedule_enabled = False
+        await self.async_save_products()
+        await self._async_scheduler_turn_pump_off_if_owned()
+        if turn_off:
+            await self.async_stop_auto_filter(turn_off=True)
+        await self.async_request_refresh()
+
     async def async_start_auto_filter(self, duration_hours: float | None = None) -> None:
         """Start pump for the recommended filtration duration, then stop it automatically."""
         pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
