@@ -468,7 +468,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         cleaned: dict[str, Any] = {
             "updated_at": now.isoformat(),
             "updated_at_local": now.strftime("%d/%m/%Y %H:%M"),
-            "source": "strip_test",
+            "source": "BAN",
         }
 
         for target, keys in aliases.items():
@@ -493,7 +493,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
         row = {
             "datetime": now.strftime("%d/%m %H:%M"),
-            "source": "strip_test",
+            "source": "BAN",
             "ph": cleaned.get("ph", self._float(self.config_entry.data.get(CONF_PH_ENTITY))),
             "orp": self._float(self.config_entry.data.get(CONF_ORP_ENTITY)),
             "temp": cleaned.get("temperature", self._temp_c(self.config_entry.data.get(CONF_TEMP_ENTITY))),
@@ -1175,7 +1175,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         row = {
             "datetime": now.strftime("%d/%m %H:%M"),
             "updated_at": now.isoformat(),
-            "source": "live",
+            "source": "BLE",
             "ph": round(ph, 2) if ph is not None else None,
             "orp": round(orp, 1) if orp is not None else None,
             "temp": round(temp, 2) if temp is not None else None,
@@ -1186,7 +1186,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
         last = self.raw_measurements[0] if self.raw_measurements else None
         should_add = True
-        if last and last.get("source") == "live":
+        if last and last.get("source") in ("live", "BLE"):
             try:
                 last_time = dt_util.parse_datetime(str(last.get("updated_at") or "")) if last.get("updated_at") else None
             except Exception:
@@ -1198,8 +1198,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 and last.get("temp") == row["temp"]
                 and last.get("free_chlorine") == row["free_chlorine"]
             )
-            # Avoid duplicates while still keeping a regular trace if sensors refresh unchanged.
-            should_add = (not same) or age >= 15 * 60
+            # Avoid duplicates: a live/BLE row is added only when values actually change.
+            should_add = not same
 
         if should_add:
             self.raw_measurements.insert(0, row)
