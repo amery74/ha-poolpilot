@@ -1289,7 +1289,21 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             alert_summary = "Aucune alerte"
         correction_active_until = None
         correction_summary = None
-        detail = {"mode": "auto_intelligent", "start": start.strftime("%H:%M"), "end": end.strftime("%H:%M"), "water_temp_c": temp, "forecast_temp_c": forecast, "forecast_source": self._forecast_daily_source, "weather_factor": weather_factor, "base_hours": round((temp / float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))), 2) if temp is not None else None}
+        center_hour = float(self.option(CONF_FILTRATION_CENTER_HOUR, DEFAULT_FILTRATION_CENTER_HOUR))
+        center_hour = max(0.0, min(23.5, center_hour))
+        detail = {
+            "mode": "auto_intelligent",
+            "start": start.strftime("%H:%M"),
+            "end": end.strftime("%H:%M"),
+            "window_label": f"{start.strftime('%H:%M')} → {end.strftime('%H:%M')}",
+            "center_hour": center_hour,
+            "center_label": f"Centrée sur {center_hour:g} h",
+            "water_temp_c": temp,
+            "forecast_temp_c": forecast,
+            "forecast_source": self._forecast_daily_source,
+            "weather_factor": weather_factor,
+            "base_hours": round((temp / float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))), 2) if temp is not None else None,
+        }
         return PoolPilotData(
             water_temp_c=temp,
             ph=ph,
