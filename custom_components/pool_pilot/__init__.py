@@ -69,6 +69,11 @@ SET_NOTIFICATION_PREFS_SCHEMA = vol.Schema({
     vol.Optional("daily_summary_time"): cv.string,
     vol.Optional("stock_low_enabled"): cv.boolean,
     vol.Optional("battery_low_enabled"): cv.boolean,
+    vol.Optional("strip_test_days"): vol.Coerce(int),
+    vol.Optional("strip_test_enabled"): cv.boolean,
+    vol.Optional("filtration_enabled"): cv.boolean,
+    vol.Optional("recommendations_enabled"): cv.boolean,
+    vol.Optional("alerts_enabled"): cv.boolean,
 }, extra=vol.ALLOW_EXTRA)
 
 UPDATE_STRIP_TEST_SCHEMA = vol.Schema({

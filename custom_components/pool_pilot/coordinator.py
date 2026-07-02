@@ -312,6 +312,11 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             "daily_summary_time": CONF_NOTIFY_DAILY_SUMMARY_TIME,
             "stock_low_enabled": CONF_NOTIFY_STOCK_LOW_ENABLED,
             "battery_low_enabled": CONF_NOTIFY_BATTERY_LOW_ENABLED,
+            "alerts_enabled": CONF_NOTIFY_ALERTS_ENABLED,
+            "recommendations_enabled": CONF_NOTIFY_RECOMMENDATIONS_ENABLED,
+            "filtration_enabled": CONF_NOTIFY_FILTRATION_ENABLED,
+            "strip_test_enabled": CONF_NOTIFY_STRIP_TEST_ENABLED,
+            "strip_test_days": CONF_NOTIFY_STRIP_TEST_DAYS,
         }
         for src, dst in mapping.items():
             if src in kwargs and kwargs[src] is not None:
@@ -324,10 +329,10 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         await self.async_request_refresh()
 
     async def async_send_test_notification(self) -> None:
-        await self._send_notification("Test Pool Pilot", "Les notifications Pool Pilot sont correctement configurées.", tag="test")
+        await self._send_notification("Test Pool Pilot", "Les notifications Pool Pilot sont correctement configurées.", tag="test", force=True)
 
-    async def _send_notification(self, title: str, message: str, tag: str = "pool_pilot") -> None:
-        if not self.option(CONF_NOTIFICATIONS_ENABLED, DEFAULT_NOTIFICATIONS_ENABLED):
+    async def _send_notification(self, title: str, message: str, tag: str = "pool_pilot", force: bool = False) -> None:
+        if not force and not self.option(CONF_NOTIFICATIONS_ENABLED, DEFAULT_NOTIFICATIONS_ENABLED):
             return
         if self.option(CONF_NOTIFY_PERSISTENT, DEFAULT_NOTIFY_PERSISTENT):
             try:
@@ -396,7 +401,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
         primary = data.pool_alerts[0] if data.pool_alerts else None
         alert_key = str(primary.get("id") or primary.get("title")) if primary else None
-        if alert_key and alert_key != self._last_notified_alert_key:
+        if self.option(CONF_NOTIFY_ALERTS_ENABLED, DEFAULT_NOTIFY_ALERTS_ENABLED) and alert_key and alert_key != self._last_notified_alert_key:
             self._last_notified_alert_key = alert_key
             msg = str(primary.get("summary") or primary.get("description") or data.alert_summary or "Alerte Pool Pilot")
             if data.recommendations:
@@ -413,7 +418,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         if data.recommendations:
             r = data.recommendations[0]
             rec_key = f"{r.product_id}:{round(float(r.quantity or 0), 3)}:{r.unit}"
-        if rec_key and rec_key != self._last_notified_recommendation_key:
+        if self.option(CONF_NOTIFY_RECOMMENDATIONS_ENABLED, DEFAULT_NOTIFY_RECOMMENDATIONS_ENABLED) and rec_key and rec_key != self._last_notified_recommendation_key:
             self._last_notified_recommendation_key = rec_key
             r = data.recommendations[0]
             await self._send_notification(
@@ -431,6 +436,39 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 self._last_stock_low_day = today
                 await self._send_notification("Pool Pilot — stock faible", "\n".join(lows), tag="stock_low")
                 self.hass.bus.async_fire("pool_pilot_stock_low", {"entry_id": self.config_entry.entry_id, "pool": self.pool_name, "items": lows})
+
+
+    def _available_notify_services(self) -> list[str]:
+        try:
+            services = self.hass.services.async_services().get("notify", {})
+        except Exception:
+            services = {}
+        result = []
+        for name in sorted(services):
+            if name.startswith("mobile_app_"):
+                result.append(f"notify.{name}")
+        for name in sorted(services):
+            full = f"notify.{name}"
+            if full not in result and name not in ("persistent_notification",):
+                result.append(full)
+        return result
+
+    def notification_preferences(self) -> dict[str, Any]:
+        return {
+            "enabled": bool(self.option(CONF_NOTIFICATIONS_ENABLED, DEFAULT_NOTIFICATIONS_ENABLED)),
+            "persistent": bool(self.option(CONF_NOTIFY_PERSISTENT, DEFAULT_NOTIFY_PERSISTENT)),
+            "mobile_services": self._notification_services(),
+            "available_mobile_services": self._available_notify_services(),
+            "daily_summary_enabled": bool(self.option(CONF_NOTIFY_DAILY_SUMMARY_ENABLED, DEFAULT_NOTIFY_DAILY_SUMMARY_ENABLED)),
+            "daily_summary_time": str(self.option(CONF_NOTIFY_DAILY_SUMMARY_TIME, DEFAULT_NOTIFY_DAILY_SUMMARY_TIME)),
+            "stock_low_enabled": bool(self.option(CONF_NOTIFY_STOCK_LOW_ENABLED, DEFAULT_NOTIFY_STOCK_LOW_ENABLED)),
+            "battery_low_enabled": bool(self.option(CONF_NOTIFY_BATTERY_LOW_ENABLED, DEFAULT_NOTIFY_BATTERY_LOW_ENABLED)),
+            "alerts_enabled": bool(self.option(CONF_NOTIFY_ALERTS_ENABLED, DEFAULT_NOTIFY_ALERTS_ENABLED)),
+            "recommendations_enabled": bool(self.option(CONF_NOTIFY_RECOMMENDATIONS_ENABLED, DEFAULT_NOTIFY_RECOMMENDATIONS_ENABLED)),
+            "filtration_enabled": bool(self.option(CONF_NOTIFY_FILTRATION_ENABLED, DEFAULT_NOTIFY_FILTRATION_ENABLED)),
+            "strip_test_enabled": bool(self.option(CONF_NOTIFY_STRIP_TEST_ENABLED, DEFAULT_NOTIFY_STRIP_TEST_ENABLED)),
+            "strip_test_days": int(self.option(CONF_NOTIFY_STRIP_TEST_DAYS, DEFAULT_NOTIFY_STRIP_TEST_DAYS) or DEFAULT_NOTIFY_STRIP_TEST_DAYS),
+        }
 
     async def async_load_products(self) -> None:
         stored = await self._store.async_load() or {}

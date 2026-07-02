@@ -494,6 +494,30 @@ set_notification_preferences:
       name: Batterie faible
       selector:
         boolean:
+    alerts_enabled:
+      name: Alertes
+      selector:
+        boolean:
+    recommendations_enabled:
+      name: Recommandations
+      selector:
+        boolean:
+    filtration_enabled:
+      name: Filtration automatique
+      selector:
+        boolean:
+    strip_test_enabled:
+      name: Rappel test bandelette
+      selector:
+        boolean:
+    strip_test_days:
+      name: Délai rappel bandelette
+      selector:
+        number:
+          min: 1
+          max: 30
+          step: 1
+          unit_of_measurement: j
 
 send_test_notification:
   name: Envoyer une notification de test

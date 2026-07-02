@@ -79,6 +79,10 @@ class PoolPilotSensor(PoolPilotEntity, SensorEntity):
         return self.entity_description.value_fn(self.coordinator.data)
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        if not self.coordinator.data or not self.entity_description.attrs_fn:
+        if not self.coordinator.data:
             return None
-        return self.entity_description.attrs_fn(self.coordinator.data)
+        attrs = self.entity_description.attrs_fn(self.coordinator.data) if self.entity_description.attrs_fn else {}
+        if self.entity_description.key in ("alert_status", "action_summary"):
+            attrs = dict(attrs or {})
+            attrs["notification_preferences"] = self.coordinator.notification_preferences()
+        return attrs or None
