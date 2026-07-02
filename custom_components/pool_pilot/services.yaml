@@ -460,3 +460,41 @@ update_journal_entry:
           min: 0
           max: 100
           step: 1
+
+set_notification_preferences:
+  name: Définir les préférences de notification
+  description: Configure les notifications natives Pool Pilot sans automatisation Home Assistant.
+  fields:
+    enabled:
+      name: Notifications activées
+      selector:
+        boolean:
+    persistent:
+      name: Notification persistante Home Assistant
+      selector:
+        boolean:
+    mobile_services:
+      name: Services mobiles notify.mobile_app
+      description: Liste ou texte séparé par des virgules, ex. notify.mobile_app_iphone
+      selector:
+        text:
+    daily_summary_enabled:
+      name: Résumé quotidien
+      selector:
+        boolean:
+    daily_summary_time:
+      name: Heure du résumé quotidien
+      selector:
+        text:
+    stock_low_enabled:
+      name: Stock faible
+      selector:
+        boolean:
+    battery_low_enabled:
+      name: Batterie faible
+      selector:
+        boolean:
+
+send_test_notification:
+  name: Envoyer une notification de test
+  description: Envoie une notification de test avec les préférences Pool Pilot.

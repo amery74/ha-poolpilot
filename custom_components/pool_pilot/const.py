@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "0.8.18"
+VERSION: Final = "0.8.19"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -70,3 +70,19 @@ CONF_FILTRATION_CENTER_HOUR: Final = "filtration_center_hour"
 DEFAULT_FILTRATION_CENTER_HOUR: Final = 12.0
 
 DEFAULT_VOLUME_M3: Final = 50.0
+
+# Notifications
+CONF_NOTIFICATIONS_ENABLED: Final = "notifications_enabled"
+CONF_NOTIFY_PERSISTENT: Final = "notify_persistent"
+CONF_NOTIFY_MOBILE_SERVICES: Final = "notify_mobile_services"
+CONF_NOTIFY_DAILY_SUMMARY_ENABLED: Final = "notify_daily_summary_enabled"
+CONF_NOTIFY_DAILY_SUMMARY_TIME: Final = "notify_daily_summary_time"
+CONF_NOTIFY_STOCK_LOW_ENABLED: Final = "notify_stock_low_enabled"
+CONF_NOTIFY_BATTERY_LOW_ENABLED: Final = "notify_battery_low_enabled"
+
+DEFAULT_NOTIFICATIONS_ENABLED: Final = False
+DEFAULT_NOTIFY_PERSISTENT: Final = True
+DEFAULT_NOTIFY_DAILY_SUMMARY_ENABLED: Final = False
+DEFAULT_NOTIFY_DAILY_SUMMARY_TIME: Final = "09:00"
+DEFAULT_NOTIFY_STOCK_LOW_ENABLED: Final = True
+DEFAULT_NOTIFY_BATTERY_LOW_ENABLED: Final = True

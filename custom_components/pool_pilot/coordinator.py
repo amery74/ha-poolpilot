@@ -7,8 +7,9 @@ from typing import Any, Callable
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, UnitOfTemperature
 from homeassistant.core import HomeAssistant, Event, callback
-from homeassistant.helpers.event import async_track_state_change_event, EventStateChangedData, async_call_later, async_track_time_interval
+from homeassistant.helpers.event import async_track_state_change_event, EventStateChangedData, async_call_later, async_track_time_interval, async_track_time_change
 from homeassistant.helpers.storage import Store
+from homeassistant.components import persistent_notification
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 from .const import *
@@ -245,6 +246,11 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._forecast_daily_max_c: float | None = None
         self._forecast_daily_max_date: str | None = None
         self._forecast_daily_source: str | None = None
+        self._daily_summary_unsub: Callable[[], None] | None = None
+        self._last_notified_alert_key: str | None = None
+        self._last_notified_recommendation_key: str | None = None
+        self._last_stock_low_day: str | None = None
+        self._last_battery_low_day: str | None = None
 
     @property
     def pool_name(self) -> str:
@@ -267,6 +273,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         await self._async_refresh_forecast_daily_max()
         await self.async_request_refresh()
         await self._async_auto_schedule_tick(dt_util.now())
+        self._setup_daily_summary_timer()
 
     def async_shutdown(self) -> None:
         if self._unsubscribe:
@@ -275,6 +282,155 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._auto_filter_unsub(); self._auto_filter_unsub = None
         if self._auto_schedule_unsub:
             self._auto_schedule_unsub(); self._auto_schedule_unsub = None
+        if self._daily_summary_unsub:
+            self._daily_summary_unsub(); self._daily_summary_unsub = None
+
+
+    def _notification_services(self) -> list[str]:
+        raw = self.option(CONF_NOTIFY_MOBILE_SERVICES, "")
+        if isinstance(raw, list):
+            items = raw
+        else:
+            items = str(raw or "").replace(";", ",").split(",")
+        services: list[str] = []
+        for item in items:
+            s = str(item or "").strip()
+            if not s:
+                continue
+            if s.startswith("notify."):
+                s = s.split(".", 1)[1]
+            services.append(s)
+        return services
+
+    async def async_set_notification_preferences(self, **kwargs: Any) -> None:
+        new_options = dict(self.config_entry.options)
+        mapping = {
+            "enabled": CONF_NOTIFICATIONS_ENABLED,
+            "persistent": CONF_NOTIFY_PERSISTENT,
+            "mobile_services": CONF_NOTIFY_MOBILE_SERVICES,
+            "daily_summary_enabled": CONF_NOTIFY_DAILY_SUMMARY_ENABLED,
+            "daily_summary_time": CONF_NOTIFY_DAILY_SUMMARY_TIME,
+            "stock_low_enabled": CONF_NOTIFY_STOCK_LOW_ENABLED,
+            "battery_low_enabled": CONF_NOTIFY_BATTERY_LOW_ENABLED,
+        }
+        for src, dst in mapping.items():
+            if src in kwargs and kwargs[src] is not None:
+                value = kwargs[src]
+                if dst == CONF_NOTIFY_MOBILE_SERVICES and isinstance(value, list):
+                    value = ",".join(str(v) for v in value if v)
+                new_options[dst] = value
+        self.hass.config_entries.async_update_entry(self.config_entry, options=new_options)
+        self._setup_daily_summary_timer()
+        await self.async_request_refresh()
+
+    async def async_send_test_notification(self) -> None:
+        await self._send_notification("Test Pool Pilot", "Les notifications Pool Pilot sont correctement configurées.", tag="test")
+
+    async def _send_notification(self, title: str, message: str, tag: str = "pool_pilot") -> None:
+        if not self.option(CONF_NOTIFICATIONS_ENABLED, DEFAULT_NOTIFICATIONS_ENABLED):
+            return
+        if self.option(CONF_NOTIFY_PERSISTENT, DEFAULT_NOTIFY_PERSISTENT):
+            try:
+                persistent_notification.async_create(self.hass, message, title=title, notification_id=f"pool_pilot_{tag}")
+            except Exception:
+                _LOGGER.exception("Unable to create Pool Pilot persistent notification")
+        for service in self._notification_services():
+            try:
+                await self.hass.services.async_call(
+                    "notify",
+                    service,
+                    {"title": title, "message": message, "data": {"tag": f"pool_pilot_{tag}"}},
+                    blocking=False,
+                )
+            except Exception:
+                _LOGGER.exception("Unable to send Pool Pilot mobile notification to %s", service)
+
+    def _setup_daily_summary_timer(self) -> None:
+        if self._daily_summary_unsub:
+            self._daily_summary_unsub()
+            self._daily_summary_unsub = None
+        if not self.option(CONF_NOTIFY_DAILY_SUMMARY_ENABLED, DEFAULT_NOTIFY_DAILY_SUMMARY_ENABLED):
+            return
+        raw = str(self.option(CONF_NOTIFY_DAILY_SUMMARY_TIME, DEFAULT_NOTIFY_DAILY_SUMMARY_TIME) or "09:00")
+        try:
+            hour, minute = [int(x) for x in raw.split(":")[:2]]
+        except Exception:
+            hour, minute = 9, 0
+        self._daily_summary_unsub = async_track_time_change(self.hass, self._async_daily_summary, hour=hour, minute=minute, second=0)
+
+    async def _async_daily_summary(self, now: datetime) -> None:
+        data = self.data or self._calculate()
+        msg = [
+            f"Qualité de l'eau : {round(data.health_score, 1)} %",
+            f"Filtration recommandée : {self._fmt_quantity(data.recommended_filter_hours, 'h') if data.recommended_filter_hours is not None else '—'}",
+        ]
+        if data.recommendations:
+            r = data.recommendations[0]
+            msg.append(f"Action : ajouter {self._fmt_quantity(r.quantity, r.unit)} de {r.product_name}")
+        elif data.alert_summary and data.has_active_alert:
+            msg.append(data.alert_summary)
+        else:
+            msg.append("Rien à faire aujourd'hui.")
+        await self._send_notification("Résumé Pool Pilot", "\n".join(msg), tag="daily_summary")
+
+    def _low_stock_recommendations(self, data: PoolPilotData) -> list[str]:
+        lows: list[str] = []
+        for product in data.products:
+            if product.stock_quantity is None:
+                continue
+            try:
+                stock = float(product.stock_quantity)
+            except Exception:
+                continue
+            if stock <= 0:
+                lows.append(f"{product.name} : stock vide")
+            elif stock <= 1:
+                lows.append(f"{product.name} : stock faible ({stock:g} {product.stock_unit or ''})")
+        return lows[:3]
+
+    async def _handle_notifications(self, data: PoolPilotData) -> None:
+        if not self.option(CONF_NOTIFICATIONS_ENABLED, DEFAULT_NOTIFICATIONS_ENABLED):
+            return
+
+        today = dt_util.now().date().isoformat()
+
+        primary = data.pool_alerts[0] if data.pool_alerts else None
+        alert_key = str(primary.get("id") or primary.get("title")) if primary else None
+        if alert_key and alert_key != self._last_notified_alert_key:
+            self._last_notified_alert_key = alert_key
+            msg = str(primary.get("summary") or primary.get("description") or data.alert_summary or "Alerte Pool Pilot")
+            if data.recommendations:
+                r = data.recommendations[0]
+                msg += f"\nAction : ajouter {self._fmt_quantity(r.quantity, r.unit)} de {r.product_name}."
+            await self._send_notification(f"Pool Pilot — {primary.get('title', 'Alerte')}", msg, tag=f"alert_{alert_key}")
+            self.hass.bus.async_fire("pool_pilot_alert_created", {"entry_id": self.config_entry.entry_id, "pool": self.pool_name, "alert": primary})
+        elif not alert_key and self._last_notified_alert_key:
+            await self._send_notification("Pool Pilot — alerte résolue", "L'alerte active est terminée.", tag="alert_resolved")
+            self.hass.bus.async_fire("pool_pilot_alert_resolved", {"entry_id": self.config_entry.entry_id, "pool": self.pool_name})
+            self._last_notified_alert_key = None
+
+        rec_key = None
+        if data.recommendations:
+            r = data.recommendations[0]
+            rec_key = f"{r.product_id}:{round(float(r.quantity or 0), 3)}:{r.unit}"
+        if rec_key and rec_key != self._last_notified_recommendation_key:
+            self._last_notified_recommendation_key = rec_key
+            r = data.recommendations[0]
+            await self._send_notification(
+                "Pool Pilot — recommandation",
+                f"Ajouter {self._fmt_quantity(r.quantity, r.unit)} de {r.product_name}.",
+                tag="recommendation",
+            )
+            self.hass.bus.async_fire("pool_pilot_recommendation_created", {"entry_id": self.config_entry.entry_id, "pool": self.pool_name, "recommendation": r.as_dict()})
+        elif not rec_key:
+            self._last_notified_recommendation_key = None
+
+        if self.option(CONF_NOTIFY_STOCK_LOW_ENABLED, DEFAULT_NOTIFY_STOCK_LOW_ENABLED) and self._last_stock_low_day != today:
+            lows = self._low_stock_recommendations(data)
+            if lows:
+                self._last_stock_low_day = today
+                await self._send_notification("Pool Pilot — stock faible", "\n".join(lows), tag="stock_low")
+                self.hass.bus.async_fire("pool_pilot_stock_low", {"entry_id": self.config_entry.entry_id, "pool": self.pool_name, "items": lows})
 
     async def async_load_products(self) -> None:
         stored = await self._store.async_load() or {}
@@ -853,7 +1009,9 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
     async def _async_update_data(self) -> PoolPilotData:
         await self._async_refresh_forecast_daily_max()
-        return self._calculate()
+        data = self._calculate()
+        await self._handle_notifications(data)
+        return data
 
     def _state(self, entity_id: str | None) -> Any:
         if not entity_id: return None

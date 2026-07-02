@@ -60,6 +60,17 @@ UPDATE_JOURNAL_ENTRY_SCHEMA = vol.Schema({
 }, extra=vol.ALLOW_EXTRA)
 REMOVE_JOURNAL_ENTRY_SCHEMA = vol.Schema({vol.Required("entry_id"): cv.string})
 
+
+SET_NOTIFICATION_PREFS_SCHEMA = vol.Schema({
+    vol.Optional("enabled"): cv.boolean,
+    vol.Optional("persistent"): cv.boolean,
+    vol.Optional("mobile_services"): vol.Any(cv.string, [cv.string]),
+    vol.Optional("daily_summary_enabled"): cv.boolean,
+    vol.Optional("daily_summary_time"): cv.string,
+    vol.Optional("stock_low_enabled"): cv.boolean,
+    vol.Optional("battery_low_enabled"): cv.boolean,
+}, extra=vol.ALLOW_EXTRA)
+
 UPDATE_STRIP_TEST_SCHEMA = vol.Schema({
     vol.Optional("ph"): vol.Any(None, vol.Coerce(float)),
     vol.Optional("alkalinity"): vol.Any(None, vol.Coerce(float)),
@@ -139,6 +150,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         c = await _coordinator()
         await c.async_update_strip_test(**dict(call.data))
 
+    async def set_notification_preferences(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_set_notification_preferences(**dict(call.data))
+
+    async def send_test_notification(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_send_test_notification()
+
     hass.services.async_register(DOMAIN, "add_product", add_product, schema=ADD_PRODUCT_SCHEMA)
     hass.services.async_register(DOMAIN, "update_product", update_product, schema=UPDATE_PRODUCT_SCHEMA)
     hass.services.async_register(DOMAIN, "set_product_stock", set_product_stock, schema=SET_STOCK_SCHEMA)
@@ -153,6 +172,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.services.async_register(DOMAIN, "add_journal_entry", add_journal_entry, schema=ADD_JOURNAL_ENTRY_SCHEMA)
     hass.services.async_register(DOMAIN, "update_journal_entry", update_journal_entry, schema=UPDATE_JOURNAL_ENTRY_SCHEMA)
     hass.services.async_register(DOMAIN, "remove_journal_entry", remove_journal_entry, schema=REMOVE_JOURNAL_ENTRY_SCHEMA)
+    hass.services.async_register(DOMAIN, "set_notification_preferences", set_notification_preferences, schema=SET_NOTIFICATION_PREFS_SCHEMA)
+    hass.services.async_register(DOMAIN, "send_test_notification", send_test_notification)
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: PoolPilotConfigEntry) -> bool:

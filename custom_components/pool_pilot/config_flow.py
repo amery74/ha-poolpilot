@@ -123,6 +123,9 @@ class PoolPilotOptionsFlow(OptionsFlow):
                 CONF_TARGET_PH, CONF_TARGET_FC, CONF_FILTERING_MODE,
                 CONF_FILTER_COEF, CONF_MIN_FILTER_HOURS, CONF_MAX_FILTER_HOURS,
                 CONF_FREE_CHLORINE_MODE, CONF_AUTO_START_TIME, CONF_AUTO_END_TIME,
+                CONF_NOTIFICATIONS_ENABLED, CONF_NOTIFY_PERSISTENT, CONF_NOTIFY_MOBILE_SERVICES,
+                CONF_NOTIFY_DAILY_SUMMARY_ENABLED, CONF_NOTIFY_DAILY_SUMMARY_TIME, CONF_NOTIFY_STOCK_LOW_ENABLED,
+                CONF_NOTIFY_BATTERY_LOW_ENABLED,
             }
             new_data = dict(self._entry.data)
             new_options = dict(self._entry.options)
@@ -166,5 +169,12 @@ class PoolPilotOptionsFlow(OptionsFlow):
             vol.Required(CONF_MIN_FILTER_HOURS, default=self._current(CONF_MIN_FILTER_HOURS, DEFAULT_MIN_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
             vol.Required(CONF_MAX_FILTER_HOURS, default=self._current(CONF_MAX_FILTER_HOURS, DEFAULT_MAX_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=1, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
             vol.Required(CONF_FREE_CHLORINE_MODE, default=self._current(CONF_FREE_CHLORINE_MODE, DEFAULT_FREE_CHLORINE_MODE)): SelectSelector(SelectSelectorConfig(options=CHLORINE_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_NOTIFICATIONS_ENABLED, default=self._current(CONF_NOTIFICATIONS_ENABLED, DEFAULT_NOTIFICATIONS_ENABLED)): BooleanSelector(),
+            vol.Required(CONF_NOTIFY_PERSISTENT, default=self._current(CONF_NOTIFY_PERSISTENT, DEFAULT_NOTIFY_PERSISTENT)): BooleanSelector(),
+            vol.Optional(CONF_NOTIFY_MOBILE_SERVICES, default=self._current(CONF_NOTIFY_MOBILE_SERVICES, "")): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+            vol.Required(CONF_NOTIFY_DAILY_SUMMARY_ENABLED, default=self._current(CONF_NOTIFY_DAILY_SUMMARY_ENABLED, DEFAULT_NOTIFY_DAILY_SUMMARY_ENABLED)): BooleanSelector(),
+            vol.Optional(CONF_NOTIFY_DAILY_SUMMARY_TIME, default=self._current(CONF_NOTIFY_DAILY_SUMMARY_TIME, DEFAULT_NOTIFY_DAILY_SUMMARY_TIME)): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+            vol.Required(CONF_NOTIFY_STOCK_LOW_ENABLED, default=self._current(CONF_NOTIFY_STOCK_LOW_ENABLED, DEFAULT_NOTIFY_STOCK_LOW_ENABLED)): BooleanSelector(),
+            vol.Required(CONF_NOTIFY_BATTERY_LOW_ENABLED, default=self._current(CONF_NOTIFY_BATTERY_LOW_ENABLED, DEFAULT_NOTIFY_BATTERY_LOW_ENABLED)): BooleanSelector(),
         }
         return self.async_show_form(step_id="init", data_schema=vol.Schema(schema))
