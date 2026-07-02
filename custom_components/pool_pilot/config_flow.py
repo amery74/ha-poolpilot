@@ -27,6 +27,11 @@ SURFACE_TYPE_OPTIONS = [
     {"value": "other", "label": "Autre"},
 ]
 
+CHLORINE_MODE_OPTIONS = [
+    {"value": "measured", "label": "Chlore mesuré — l’appareil expose une entité chlore libre"},
+    {"value": "estimated", "label": "Chlore estimé — ORP + pH + température, stabilisant via bandelette"},
+]
+
 FILTERING_MODE_OPTIONS = [
     {"value": "off", "label": "Arrêt"},
     {"value": "manual", "label": "Manuel"},
@@ -160,6 +165,6 @@ class PoolPilotOptionsFlow(OptionsFlow):
             vol.Required(CONF_FILTER_COEF, default=self._current(CONF_FILTER_COEF, DEFAULT_FILTER_COEF)): NumberSelector(NumberSelectorConfig(min=1.0, max=4.0, step=0.1, mode=NumberSelectorMode.BOX)),
             vol.Required(CONF_MIN_FILTER_HOURS, default=self._current(CONF_MIN_FILTER_HOURS, DEFAULT_MIN_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=0, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
             vol.Required(CONF_MAX_FILTER_HOURS, default=self._current(CONF_MAX_FILTER_HOURS, DEFAULT_MAX_FILTER_HOURS)): NumberSelector(NumberSelectorConfig(min=1, max=24, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
-            vol.Required(CONF_FREE_CHLORINE_MODE, default=self._current(CONF_FREE_CHLORINE_MODE, DEFAULT_FREE_CHLORINE_MODE)): BooleanSelector(),
+            vol.Required(CONF_FREE_CHLORINE_MODE, default=self._current(CONF_FREE_CHLORINE_MODE, DEFAULT_FREE_CHLORINE_MODE)): SelectSelector(SelectSelectorConfig(options=CHLORINE_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
         }
         return self.async_show_form(step_id="init", data_schema=vol.Schema(schema))

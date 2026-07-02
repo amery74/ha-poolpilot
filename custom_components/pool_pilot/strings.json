@@ -153,6 +153,27 @@
       },
       "raw_measurements": {
         "name": "Historique mesures"
+      },
+      "estimated_free_chlorine": {
+        "name": "Chlore libre estimé"
+      },
+      "active_chlorine": {
+        "name": "Chlore actif HOCl"
+      },
+      "chlorine_mode_used": {
+        "name": "Mode chlore utilisé"
+      },
+      "lsi": {
+        "name": "LSI"
+      },
+      "phs": {
+        "name": "pHs"
+      },
+      "minf": {
+        "name": "MINF / TDS"
+      },
+      "taylor_status": {
+        "name": "Balance de Taylor"
       }
     },
     "number": {

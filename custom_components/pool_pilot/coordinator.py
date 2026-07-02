@@ -164,6 +164,19 @@ class PoolPilotData:
     ph: float | None = None
     orp: float | None = None
     free_chlorine: float | None = None
+    estimated_free_chlorine: float | None = None
+    active_chlorine: float | None = None
+    active_chlorine_percent: float | None = None
+    chlorine_mode_used: str = "unknown"
+    chlorine_source: str = "unknown"
+    disinfection_power: str = "unknown"
+    lsi: float | None = None
+    lsi_status: str = "unknown"
+    phs: float | None = None
+    minf: float | None = None
+    tds: float | None = None
+    taylor_status: str = "unknown"
+    taylor_comment: str = ""
     alkalinity: float | None = None
     calcium: float | None = None
     cya: float | None = None
@@ -1307,17 +1320,139 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             return strip_value if strip_value is not None else entity_value
         return entity_value if entity_value is not None else strip_value
 
+
+    def _chlorine_mode(self) -> str:
+        raw = self.option(CONF_FREE_CHLORINE_MODE, DEFAULT_FREE_CHLORINE_MODE)
+        if raw in (True, "true", "measured", "sensor", "capteur"):
+            return "measured"
+        if raw in ("estimated", "orp", "estimate", "estimé", "estime"):
+            return "estimated"
+        return "measured"
+
+    def _estimated_free_chlorine(self, orp: float | None, ph: float | None, temp: float | None) -> float | None:
+        """Estimate free chlorine from ORP + pH + temperature.
+
+        This is an empirical Nernst-style estimator calibrated for pool ranges.
+        It is intentionally conservative and intended as a fallback when no free
+        chlorine sensor is available.
+        """
+        if orp is None or ph is None:
+            return None
+        try:
+            temp_c = 25.0 if temp is None else float(temp)
+            # ORP corrected around pH 7.4 and 25 °C. 650 mV ~= 1 ppm reference.
+            corrected_orp = float(orp) + 55.0 * (7.4 - float(ph)) + 0.4 * (25.0 - temp_c)
+            fc = 10 ** ((corrected_orp - 650.0) / 120.0)
+            return round(max(0.0, min(20.0, fc)), 2)
+        except Exception:
+            return None
+
+    def _active_chlorine(self, fc: float | None, ph: float | None, temp: float | None, cya: float | None) -> tuple[float | None, float | None, str]:
+        """Estimate active chlorine HOCl from FC, pH, temperature and CYA.
+
+        Uses the HOCl/OCl- acid dissociation relationship with a simplified CYA
+        reduction factor.  Result is an operational indicator, not a laboratory
+        measurement.
+        """
+        if fc is None or ph is None:
+            return None, None, "unknown"
+        try:
+            temp_c = 25.0 if temp is None else float(temp)
+            # HOCl pKa decreases slightly when temperature rises.
+            pka = 7.54 - 0.028 * (temp_c - 25.0)
+            free_fraction = 1.0 / (1.0 + 10 ** (float(ph) - pka))
+            cya_ppm = max(0.0, float(cya or 0.0))
+            # CYA binds most chlorine.  Conservative pool-operation approximation.
+            cya_factor = 1.0 / (1.0 + 0.18 * cya_ppm)
+            fraction = max(0.0, min(1.0, free_fraction * cya_factor))
+            hocl = max(0.0, float(fc) * fraction)
+            if hocl >= 0.05:
+                power = "bon"
+            elif hocl >= 0.02:
+                power = "moyen"
+            else:
+                power = "faible"
+            return round(hocl, 4), round(fraction * 100.0, 2), power
+        except Exception:
+            return None, None, "unknown"
+
+
+    def _lsi_status_comment(self, status: str, lsi: float | None) -> tuple[str, str]:
+        if lsi is None or status == "incomplet":
+            return "incomplet", "Données insuffisantes : renseignez pH, température, TAC, TH et stabilisant pour obtenir un bilan complet."
+        if status == "corrosive":
+            return status, "Eau corrosive : augmentez progressivement le pouvoir tampon ou la dureté si nécessaire, puis contrôlez le pH."
+        if status == "agressive":
+            return status, "Eau légèrement agressive : surveillez TAC, TH et pH afin de revenir proche de l’équilibre."
+        if status == "equilibree":
+            return status, "Eau équilibrée : le bilan hydrique est proche de l’idéal."
+        if status == "entartrante":
+            return status, "Eau légèrement entartrante : surveillez le pH, le TAC et la dureté pour limiter les dépôts."
+        return status, "Risque de tartre élevé : corrigez pH, TAC ou dureté avant apparition de dépôts."
+
+    def _mineralization_tds(self, salt: float | None) -> tuple[float, float]:
+        # Valeur par défaut piscine non salée. Si la salinité est disponible, elle est ajoutée.
+        tds = 1000.0 + max(0.0, float(salt or 0.0))
+        return round(tds, 0), round(tds, 0)
+
+    def _lsi(self, ph: float | None, temp: float | None, alkalinity: float | None, calcium: float | None, salt: float | None) -> tuple[float | None, str, float | None, float | None, float | None, str]:
+        """Calculate Taylor/Langelier water balance in the backend.
+
+        Returns LSI, status, saturation pH (pHs), MINF/TDS and a human comment.
+        The Lovelace card only displays these backend values.
+        """
+        tds, minf = self._mineralization_tds(salt)
+        if ph is None or alkalinity is None or calcium is None or alkalinity <= 0 or calcium <= 0:
+            _, comment = self._lsi_status_comment("incomplet", None)
+            return None, "incomplet", None, minf, tds, comment
+        try:
+            temp_c = 25.0 if temp is None else float(temp)
+            temp_k = temp_c + 273.15
+            A = (math.log10(max(tds, 1.0)) - 1.0) / 10.0
+            B = -13.12 * math.log10(temp_k) + 34.55
+            C = math.log10(max(float(calcium), 1.0)) - 0.4
+            D = math.log10(max(float(alkalinity), 1.0))
+            phs = round((9.3 + A + B) - (C + D), 2)
+            lsi = round(float(ph) - phs, 2)
+            if lsi < -0.5:
+                status = "corrosive"
+            elif lsi < -0.1:
+                status = "agressive"
+            elif lsi <= 0.1:
+                status = "equilibree"
+            elif lsi <= 0.5:
+                status = "entartrante"
+            else:
+                status = "tres_entartrante"
+            _, comment = self._lsi_status_comment(status, lsi)
+            return lsi, status, phs, minf, tds, comment
+        except Exception:
+            _, comment = self._lsi_status_comment("incomplet", None)
+            return None, "incomplet", None, minf, tds, comment
+
     def _calculate(self) -> PoolPilotData:
         d = self.config_entry.data
         temp = self._temp_c(d.get(CONF_TEMP_ENTITY))
         forecast = self._weather_forecast_temp()
         ph = self._strip_or_entity_float("ph", d.get(CONF_PH_ENTITY), prefer_strip=False)
         orp = self._float(d.get(CONF_ORP_ENTITY))
-        fc = self._strip_or_entity_float("free_chlorine", d.get(CONF_FC_ENTITY), prefer_strip=False)
+        fc_measured = self._strip_or_entity_float("free_chlorine", d.get(CONF_FC_ENTITY), prefer_strip=False)
         ta = self._strip_or_entity_float("alkalinity", d.get(CONF_TA_ENTITY), prefer_strip=True)
         ch = self._strip_or_entity_float("calcium", d.get(CONF_CH_ENTITY), prefer_strip=True)
         cya = self._strip_or_entity_float("cya", d.get(CONF_CYA_ENTITY), prefer_strip=True)
         salt = self._float(d.get(CONF_SALT_ENTITY))
+        chlorine_mode = self._chlorine_mode()
+        estimated_fc = self._estimated_free_chlorine(orp, ph, temp)
+        if chlorine_mode == "estimated" or fc_measured is None:
+            fc = estimated_fc
+            chlorine_mode_used = "estimated"
+            chlorine_source = "ORP + pH"
+        else:
+            fc = fc_measured
+            chlorine_mode_used = "measured"
+            chlorine_source = "capteur"
+        active_chlorine, active_chlorine_percent, disinfection_power = self._active_chlorine(fc, ph, temp, cya)
+        lsi, lsi_status, phs, minf, tds, taylor_comment = self._lsi(ph, temp, ta, ch, salt)
         pump_on = self._is_on(d.get(CONF_PUMP_SWITCH))
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
         cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
@@ -1407,6 +1542,19 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             ph=ph,
             orp=orp,
             free_chlorine=fc,
+            estimated_free_chlorine=estimated_fc,
+            active_chlorine=active_chlorine,
+            active_chlorine_percent=active_chlorine_percent,
+            chlorine_mode_used=chlorine_mode_used,
+            chlorine_source=chlorine_source,
+            disinfection_power=disinfection_power,
+            lsi=lsi,
+            lsi_status=lsi_status,
+            phs=phs,
+            minf=minf,
+            tds=tds,
+            taylor_status=lsi_status,
+            taylor_comment=taylor_comment,
             alkalinity=ta,
             calcium=ch,
             cya=cya,
