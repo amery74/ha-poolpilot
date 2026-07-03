@@ -795,13 +795,20 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._auto_schedule_last_tick = None
             self._auto_schedule_owns_pump = False
 
-    def _auto_schedule_target_hours(self) -> float:
+    def _auto_schedule_target_hours(self, recommended_hours: float | None = None) -> float:
         """Return the smart daily target, capped to 24h.
 
-        The actual run window is centered around the configured center hour.
+        During startup/_calculate(), avoid calling _calculate() recursively.
         """
-        data = self.data or self._calculate()
-        target = float(data.recommended_filter_hours or 0.0)
+        if recommended_hours is None:
+            if self.data is not None:
+                recommended_hours = self.data.recommended_filter_hours
+            else:
+                temp = self._temp_c(self.config_entry.data.get(CONF_TEMP_ENTITY))
+                forecast = self._weather_forecast_temp()
+                cover = self._cover_closed(self.config_entry.data.get(CONF_COVER_ENTITY))
+                recommended_hours, _weather_factor = self._filter_hours(temp, forecast, cover)
+        target = float(recommended_hours or 0.0)
         return round(max(0.0, min(target, 24.0)), 2)
 
     def _today_schedule_windows(self) -> list[tuple[datetime, datetime]]:
@@ -814,9 +821,9 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         start, end = self._allowed_window_today()
         return [(start, end)]
 
-    def _schedule_windows_as_dicts(self) -> list[dict[str, str]]:
+    def _schedule_windows_as_dicts(self, recommended_hours: float | None = None) -> list[dict[str, str]]:
         done = round(self._auto_schedule_seconds_today / 3600, 2)
-        target = self._auto_schedule_target_hours()
+        target = self._auto_schedule_target_hours(recommended_hours)
         return [{"start": s.isoformat(), "end": e.isoformat(), "label": f"{s.strftime('%H:%M')} → {e.strftime('%H:%M')}", "target_hours": target, "done_hours": done} for s, e in self._today_schedule_windows()]
 
     def _next_schedule_start(self) -> datetime | None:
@@ -1682,7 +1689,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
         auto_remaining = self._auto_filter_remaining_hours()
         auto_active = auto_remaining is not None and auto_remaining > 0
-        schedule_windows = self._schedule_windows_as_dicts() if self._auto_schedule_enabled else []
+        schedule_windows = self._schedule_windows_as_dicts(hours) if self._auto_schedule_enabled else []
         schedule_next = self._next_schedule_start() if self._auto_schedule_enabled else None
         schedule_target = self._auto_schedule_target_hours() if self._auto_schedule_enabled else None
         schedule_done = round(self._auto_schedule_seconds_today / 3600, 2) if self._auto_schedule_enabled else None
