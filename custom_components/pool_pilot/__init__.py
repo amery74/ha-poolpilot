@@ -4,6 +4,7 @@ import logging
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.const import Platform
 from .const import DOMAIN
@@ -91,8 +92,18 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     async def _coordinator() -> PoolPilotCoordinator:
         entries = hass.config_entries.async_entries(DOMAIN)
         if not entries:
-            raise ValueError("Aucune instance Pool Pilot configurée")
-        return entries[0].runtime_data
+            raise HomeAssistantError("Aucune instance Pool Pilot configurée")
+
+        for entry in entries:
+            coordinator = getattr(entry, "runtime_data", None)
+            if coordinator is not None:
+                return coordinator
+
+            coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+            if coordinator is not None:
+                return coordinator
+
+        raise HomeAssistantError("Coordinateur Pool Pilot indisponible")
 
     async def add_product(call: ServiceCall) -> None:
         c = await _coordinator()
@@ -184,15 +195,29 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: PoolPilotConfigEntry) -> bool:
     coordinator = PoolPilotCoordinator(hass, entry)
     await coordinator.async_setup()
-    entry.runtime_data = coordinator
+
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    try:
+        entry.runtime_data = coordinator
+    except Exception:
+        # Older/future HA versions may not allow writing runtime_data.
+        pass
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: PoolPilotConfigEntry) -> bool:
-    coordinator = entry.runtime_data
-    coordinator.async_shutdown()
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    coordinator = getattr(entry, "runtime_data", None) or hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if coordinator is not None:
+        coordinator.async_shutdown()
+
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+    return unload_ok
 
 async def async_reload_entry(hass: HomeAssistant, entry: PoolPilotConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
