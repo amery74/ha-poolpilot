@@ -167,12 +167,28 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         await c.async_update_strip_test(**dict(call.data))
 
     async def set_notification_preferences(call: ServiceCall) -> None:
-        c = await _coordinator()
-        await c.async_set_notification_preferences(**dict(call.data))
+        try:
+            c = await _coordinator()
+        except Exception as err:
+            _LOGGER.warning("Pool Pilot: notification preferences ignored because coordinator is unavailable: %s", err)
+            return
+        try:
+            await c.async_set_notification_preferences(**dict(call.data))
+        except Exception:
+            _LOGGER.exception("Pool Pilot: failed to save notification preferences")
+            return
 
     async def send_test_notification(call: ServiceCall) -> None:
-        c = await _coordinator()
-        await c.async_send_test_notification()
+        try:
+            c = await _coordinator()
+        except Exception as err:
+            _LOGGER.warning("Pool Pilot: test notification ignored because coordinator is unavailable: %s", err)
+            return
+        try:
+            await c.async_send_test_notification()
+        except Exception:
+            _LOGGER.exception("Pool Pilot: failed to send test notification")
+            return
 
     hass.services.async_register(DOMAIN, "add_product", add_product, schema=ADD_PRODUCT_SCHEMA)
     hass.services.async_register(DOMAIN, "update_product", update_product, schema=UPDATE_PRODUCT_SCHEMA)
