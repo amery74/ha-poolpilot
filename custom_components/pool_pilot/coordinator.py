@@ -260,8 +260,20 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         return self.config_entry.options.get(key, self.config_entry.data.get(key, default))
 
     async def async_setup(self) -> None:
-        await self.async_load_products()
-        await self.async_load_scheduler_state()
+        # Keep Home Assistant startup non-blocking. Do not call weather services,
+        # pump services, notification services, or heavy calculations while HA is booting.
+        try:
+            await self.async_load_products()
+        except Exception:
+            _LOGGER.exception("Pool Pilot: product storage load failed")
+        try:
+            await self.async_load_scheduler_state()
+        except Exception:
+            _LOGGER.exception("Pool Pilot: scheduler storage load failed")
+
+        # Publish a minimal data object immediately so platforms can be created.
+        self.async_set_updated_data(PoolPilotData(last_updated=dt_util.now()))
+
         entities = [self.config_entry.data.get(k) for k in (
             CONF_TEMP_ENTITY, CONF_PH_ENTITY, CONF_ORP_ENTITY, CONF_FC_ENTITY, CONF_TA_ENTITY,
             CONF_CH_ENTITY, CONF_CYA_ENTITY, CONF_SALT_ENTITY, CONF_PUMP_SWITCH, CONF_HEATPUMP_ENTITY,
@@ -269,20 +281,24 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         entities = [e for e in entities if e]
         if entities:
             self._unsubscribe = async_track_state_change_event(self.hass, entities, self._async_state_changed)
-        self._auto_schedule_unsub = async_track_time_interval(self.hass, self._async_auto_schedule_tick, timedelta(minutes=1))
 
-        # Startup must never be blocked by weather, notifications, or pump services.
-        # The first full refresh is scheduled in background; HA can finish booting.
-        self.async_set_updated_data(self._calculate())
-        self.hass.async_create_task(self._async_startup_refresh_safe())
-        self._setup_daily_summary_timer()
+        # Delay background jobs until after HA has had time to start.
+        async_call_later(self.hass, 30, self._async_startup_refresh_later)
 
-    async def _async_startup_refresh_safe(self) -> None:
+    async def _async_startup_refresh_later(self, _now=None) -> None:
         try:
             await self._async_refresh_forecast_daily_max()
+        except Exception:
+            _LOGGER.exception("Pool Pilot: startup weather refresh failed")
+        try:
             await self.async_request_refresh()
         except Exception:
-            _LOGGER.exception("Pool Pilot: startup refresh failed but Home Assistant startup continues")
+            _LOGGER.exception("Pool Pilot: startup data refresh failed")
+        try:
+            self._auto_schedule_unsub = async_track_time_interval(self.hass, self._async_auto_schedule_tick, timedelta(minutes=1))
+            self._setup_daily_summary_timer()
+        except Exception:
+            _LOGGER.exception("Pool Pilot: startup timer setup failed")
 
     def async_shutdown(self) -> None:
         if self._unsubscribe:

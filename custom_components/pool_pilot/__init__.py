@@ -210,17 +210,18 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: PoolPilotConfigEntry) -> bool:
     coordinator = PoolPilotCoordinator(hass, entry)
-    await coordinator.async_setup()
 
+    # Register coordinator before async_setup so services can always find it,
+    # even during early startup or partial setup.
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     try:
         entry.runtime_data = coordinator
     except Exception:
-        # Older/future HA versions may not allow writing runtime_data.
         pass
 
+    await coordinator.async_setup()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
