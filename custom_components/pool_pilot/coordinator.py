@@ -270,10 +270,19 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         if entities:
             self._unsubscribe = async_track_state_change_event(self.hass, entities, self._async_state_changed)
         self._auto_schedule_unsub = async_track_time_interval(self.hass, self._async_auto_schedule_tick, timedelta(minutes=1))
-        await self._async_refresh_forecast_daily_max()
-        await self.async_request_refresh()
-        await self._async_auto_schedule_tick(dt_util.now())
+
+        # Startup must never be blocked by weather, notifications, or pump services.
+        # The first full refresh is scheduled in background; HA can finish booting.
+        self.async_set_updated_data(self._calculate())
+        self.hass.async_create_task(self._async_startup_refresh_safe())
         self._setup_daily_summary_timer()
+
+    async def _async_startup_refresh_safe(self) -> None:
+        try:
+            await self._async_refresh_forecast_daily_max()
+            await self.async_request_refresh()
+        except Exception:
+            _LOGGER.exception("Pool Pilot: startup refresh failed but Home Assistant startup continues")
 
     def async_shutdown(self) -> None:
         if self._unsubscribe:
@@ -971,6 +980,11 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         if not entity_id:
             return
 
+        weather_state = self.hass.states.get(entity_id)
+        if weather_state is None or weather_state.state in BAD_STATES:
+            _LOGGER.debug("Pool Pilot: weather entity %s unavailable, skipping forecast refresh", entity_id)
+            return
+
         async def call_forecast(kind: str) -> list[dict[str, Any]]:
             try:
                 response = await self.hass.services.async_call(
@@ -1053,9 +1067,15 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._forecast_daily_source = "weather.attributes.forecast"
 
     async def _async_update_data(self) -> PoolPilotData:
-        await self._async_refresh_forecast_daily_max()
+        try:
+            await self._async_refresh_forecast_daily_max()
+        except Exception:
+            _LOGGER.exception("Pool Pilot: weather forecast refresh failed")
         data = self._calculate()
-        await self._handle_notifications(data)
+        try:
+            await self._handle_notifications(data)
+        except Exception:
+            _LOGGER.exception("Pool Pilot: notification handling failed")
         return data
 
     def _state(self, entity_id: str | None) -> Any:
