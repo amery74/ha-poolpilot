@@ -124,8 +124,8 @@ Les warnings Home Assistant indiquant qu’une intégration personnalisée n’e
 
 ## Versions recommandées
 
-- Pool Pilot : **v1.0.0** ou plus récent.
-- Pool Pilot Dashboard : **v1.0.0** ou plus récent.
+- Pool Pilot : **v1.0.1** ou plus récent.
+- Pool Pilot Dashboard : **v1.0.1** ou plus récent.
 - Home Assistant : version récente avec HACS.
 
 ## Licence

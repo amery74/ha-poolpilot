@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "0.8.30"
+VERSION: Final = "1.0.1"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -38,7 +38,7 @@ POOL_TYPE_SALT = "saltwater"
 POOL_TYPE_BROMINE = "bromine"
 POOL_TYPES = [POOL_TYPE_CHLORINE, POOL_TYPE_SALT, POOL_TYPE_BROMINE]
 SURFACE_TYPES = ["liner", "polyester", "concrete", "tile", "painted", "other"]
-FILTERING_MODES = ["manual", "auto_intelligent"]
+FILTERING_MODES = ["off", "manual", "auto"]
 
 DEFAULT_TARGET_PH = 7.4
 DEFAULT_TARGET_FC = 2.0

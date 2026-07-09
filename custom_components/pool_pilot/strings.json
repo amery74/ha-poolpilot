@@ -75,7 +75,7 @@
           "off": "Arrêt",
           "manual": "Manuel",
           "auto": "Automatique",
-          "auto_intelligent": "Auto intelligent"
+          "auto": "Auto intelligent"
         }
       }
     }

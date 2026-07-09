@@ -69,7 +69,7 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title=self._data[CONF_POOL_NAME], data=self._data, options={
                 CONF_TARGET_PH: DEFAULT_TARGET_PH,
                 CONF_TARGET_FC: DEFAULT_TARGET_FC,
-                CONF_FILTERING_MODE: "auto_intelligent",
+                CONF_FILTERING_MODE: "auto",
                 CONF_AUTO_START_TIME: DEFAULT_AUTO_START_TIME,
                 CONF_AUTO_END_TIME: DEFAULT_AUTO_END_TIME,
                 CONF_FILTER_COEF: DEFAULT_FILTER_COEF,
@@ -104,6 +104,8 @@ class PoolPilotOptionsFlow(OptionsFlow):
 
     def _current(self, key: str, default: Any = None) -> Any:
         value = self._entry.options.get(key, self._entry.data.get(key, default))
+        if key == CONF_FILTERING_MODE and value == "auto_intelligent":
+            return "auto"
         return default if value is None else value
 
     def _optional_entity(self, key: str) -> Any:
@@ -162,7 +164,7 @@ class PoolPilotOptionsFlow(OptionsFlow):
             self._optional_entity(CONF_SALT_ENTITY): sensor,
             vol.Required(CONF_TARGET_PH, default=self._current(CONF_TARGET_PH, DEFAULT_TARGET_PH)): NumberSelector(NumberSelectorConfig(min=6.8, max=8.0, step=0.1, mode=NumberSelectorMode.SLIDER)),
             vol.Required(CONF_TARGET_FC, default=self._current(CONF_TARGET_FC, DEFAULT_TARGET_FC)): NumberSelector(NumberSelectorConfig(min=0.5, max=10, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="ppm")),
-            vol.Required(CONF_FILTERING_MODE, default=self._current(CONF_FILTERING_MODE, "auto_intelligent")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_FILTERING_MODE, default=self._current(CONF_FILTERING_MODE, "auto")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_AUTO_START_TIME, default=self._current(CONF_AUTO_START_TIME, DEFAULT_AUTO_START_TIME)): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_AUTO_END_TIME, default=self._current(CONF_AUTO_END_TIME, DEFAULT_AUTO_END_TIME)): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_FILTER_COEF, default=self._current(CONF_FILTER_COEF, DEFAULT_FILTER_COEF)): NumberSelector(NumberSelectorConfig(min=1.0, max=4.0, step=0.1, mode=NumberSelectorMode.BOX)),

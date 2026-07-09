@@ -219,7 +219,7 @@ class PoolPilotData:
     auto_schedule_target_hours: float | None = None
     auto_schedule_done_hours: float | None = None
     auto_schedule_end_limit: str | None = None
-    auto_schedule_detail: dict[str, Any] = field(default_factory=dict)
+    detail: dict[str, Any] = field(default_factory=dict)
 
 class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
     config_entry: ConfigEntry
@@ -1764,7 +1764,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         center_hour = float(self.option(CONF_FILTRATION_CENTER_HOUR, DEFAULT_FILTRATION_CENTER_HOUR))
         center_hour = max(0.0, min(23.5, center_hour))
         detail = {
-            "mode": "auto_intelligent",
+            "mode": "auto",
             "start": start.strftime("%H:%M"),
             "end": end.strftime("%H:%M"),
             "window_label": f"{start.strftime('%H:%M')} → {end.strftime('%H:%M')}",
@@ -1835,5 +1835,5 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             auto_schedule_target_hours=schedule_target,
             auto_schedule_done_hours=schedule_done,
             auto_schedule_end_limit=end.strftime("%H:%M"),
-            auto_schedule_detail=detail,
+            detail=detail,
         )
