@@ -1560,6 +1560,14 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         return entity_value if entity_value is not None else strip_value
 
 
+    def _disinfection_mode(self) -> str:
+        """Return the configured disinfection measurement strategy."""
+        raw = str(self.option(CONF_DISINFECTION_MODE, DEFAULT_DISINFECTION_MODE) or "").lower()
+        if raw in DISINFECTION_MODES:
+            return raw
+        # Migration from the former measured/estimated option.
+        return "chlorine" if self._chlorine_mode() == "measured" else "orp"
+
     def _chlorine_mode(self) -> str:
         raw = self.option(CONF_FREE_CHLORINE_MODE, DEFAULT_FREE_CHLORINE_MODE)
         if raw in (True, "true", "measured", "sensor", "capteur"):
@@ -1681,8 +1689,18 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         cya = self._strip_or_entity_float("cya", d.get(CONF_CYA_ENTITY), prefer_strip=True)
         salt = self._float(d.get(CONF_SALT_ENTITY))
         chlorine_mode = self._chlorine_mode()
+        disinfection_mode = self._disinfection_mode()
         estimated_fc = self._estimated_free_chlorine(orp, ph, temp)
-        if chlorine_mode == "estimated" or fc_measured is None:
+
+        if disinfection_mode == "orp":
+            fc = estimated_fc
+            chlorine_mode_used = "estimated"
+            chlorine_source = "ORP + pH"
+        elif disinfection_mode == "hybrid":
+            fc = fc_measured if fc_measured is not None else estimated_fc
+            chlorine_mode_used = "measured" if fc_measured is not None else "estimated"
+            chlorine_source = "capteur + ORP" if fc_measured is not None else "ORP + pH"
+        elif chlorine_mode == "estimated" or fc_measured is None:
             fc = estimated_fc
             chlorine_mode_used = "estimated"
             chlorine_source = "ORP + pH"
@@ -1765,6 +1783,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         center_hour = max(0.0, min(23.5, center_hour))
         detail = {
             "mode": "auto",
+            "disinfection_mode": disinfection_mode,
             "start": start.strftime("%H:%M"),
             "end": end.strftime("%H:%M"),
             "window_label": f"{start.strftime('%H:%M')} → {end.strftime('%H:%M')}",

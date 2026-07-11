@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.0-beta.1
+
+### Fixed
+- Corrected persistence of options such as chlorine mode and minimum filtration hours.
+- Existing options are no longer replaced by an empty options dictionary after saving.
+
+### Added
+- New disinfection-system selector: chlorine, ORP/RedOx, or hybrid.
+- ORP-only installations can explicitly use the ORP-based chlorine estimate.
+- Documentation for the optional “Start measurement” and “Last measurement” entities.
+- More transparent filtration detail attributes.
+
+
 ## v1.0.1
 
 ### Fixed

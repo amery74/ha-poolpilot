@@ -65,7 +65,8 @@
           "min_filter_hours": "Filtration minimum",
           "max_filter_hours": "Filtration maximum",
           "heat_pump_priority": "Priorité PAC",
-          "free_chlorine_mode": "Utiliser le chlore libre plutôt que RedOx"
+          "free_chlorine_mode": "Source du chlore libre (compatibilité)",
+          "disinfection_mode": "Système de désinfection / mesure"
         }
       }
     },
@@ -74,7 +75,6 @@
         "options": {
           "off": "Arrêt",
           "manual": "Manuel",
-          "auto": "Automatique",
           "auto": "Auto intelligent"
         }
       }

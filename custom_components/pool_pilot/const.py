@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "1.0.1"
+VERSION: Final = "1.1.0-beta.1"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -32,6 +32,9 @@ CONF_MIN_FILTER_HOURS: Final = "min_filter_hours"
 CONF_MAX_FILTER_HOURS: Final = "max_filter_hours"
 CONF_HEAT_PUMP_PRIORITY: Final = "heat_pump_priority"
 CONF_FREE_CHLORINE_MODE: Final = "free_chlorine_mode"
+CONF_DISINFECTION_MODE: Final = "disinfection_mode"
+DISINFECTION_MODES = ["chlorine", "orp", "hybrid"]
+DEFAULT_DISINFECTION_MODE = "orp"
 
 POOL_TYPE_CHLORINE = "chlorine"
 POOL_TYPE_SALT = "saltwater"

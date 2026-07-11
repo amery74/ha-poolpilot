@@ -124,10 +124,23 @@ Les warnings Home Assistant indiquant qu’une intégration personnalisée n’e
 
 ## Versions recommandées
 
-- Pool Pilot : **v1.0.1** ou plus récent.
-- Pool Pilot Dashboard : **v1.0.1** ou plus récent.
+- Pool Pilot : **v1.1.0-beta.1** ou plus récent.
+- Pool Pilot Dashboard : **v1.1.0-beta.1** ou plus récent.
 - Home Assistant : version récente avec HACS.
 
 ## Licence
 
 Projet personnel Home Assistant pour le suivi et l’automatisation d’une piscine résidentielle.
+
+
+## Mesures et système de désinfection
+
+Dans les options de l’intégration, choisissez le système correspondant à votre installation :
+
+- **Chlore libre** : un capteur de chlore libre est disponible.
+- **ORP / RedOx** : l’installation expose l’ORP mais pas de chlore libre.
+- **ORP + chlore libre** : les deux mesures sont disponibles.
+
+Le bouton **Lancer une mesure** est facultatif : sélectionnez-le uniquement si votre appareil expose une entité permettant de déclencher une analyse.  
+Le champ **Dernière mesure** est également facultatif : il affiche la date et l’heure fournies par le capteur de l’utilisateur.
+
