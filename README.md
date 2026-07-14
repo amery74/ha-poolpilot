@@ -124,8 +124,8 @@ Les warnings Home Assistant indiquant qu’une intégration personnalisée n’e
 
 ## Versions recommandées
 
-- Pool Pilot : **v1.1.0-beta.1** ou plus récent.
-- Pool Pilot Dashboard : **v1.1.0-beta.1** ou plus récent.
+- Pool Pilot : **v1.1.1** ou plus récent.
+- Pool Pilot Dashboard : **v1.1.1** ou plus récent.
 - Home Assistant : version récente avec HACS.
 
 ## Licence
@@ -143,4 +143,16 @@ Dans les options de l’intégration, choisissez le système correspondant à vo
 
 Le bouton **Lancer une mesure** est facultatif : sélectionnez-le uniquement si votre appareil expose une entité permettant de déclencher une analyse.  
 Le champ **Dernière mesure** est également facultatif : il affiche la date et l’heure fournies par le capteur de l’utilisateur.
+
+
+
+## Configuration de la pompe
+
+La pompe n’est plus obligatoire pour utiliser Pool Pilot.
+
+- **Commande pompe (optionnelle)** : sélectionnez un `switch` ou un `input_boolean` uniquement si Pool Pilot doit pouvoir démarrer et arrêter la pompe.
+- **État de la pompe (optionnel)** : sélectionnez un `binary_sensor`, un `switch` ou un `input_boolean` si vous souhaitez seulement afficher et suivre son état.
+- Si aucun de ces champs n’est renseigné, Pool Pilot continue de calculer les recommandations de filtration, mais ne pilote pas la pompe.
+
+Ne créez pas de faux interrupteur uniquement pour terminer l’installation.
 

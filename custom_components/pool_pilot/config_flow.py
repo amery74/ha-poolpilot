@@ -88,10 +88,12 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
             })
         sensor = EntitySelector(EntitySelectorConfig(domain="sensor"))
         switch = EntitySelector(EntitySelectorConfig(domain=["switch", "input_boolean"]))
+        pump_state = EntitySelector(EntitySelectorConfig(domain=["binary_sensor", "switch", "input_boolean"]))
         weather = EntitySelector(EntitySelectorConfig(domain="weather"))
         return self.async_show_form(step_id="entities", data_schema=vol.Schema({
             vol.Required(CONF_TEMP_ENTITY): sensor,
-            vol.Required(CONF_PUMP_SWITCH): switch,
+            vol.Optional(CONF_PUMP_SWITCH): switch,
+            vol.Optional(CONF_PUMP_STATE): pump_state,
             vol.Required(CONF_WEATHER_ENTITY): weather,
             vol.Optional(CONF_PH_ENTITY): sensor,
             vol.Optional(CONF_ORP_ENTITY): sensor,
@@ -128,7 +130,7 @@ class PoolPilotOptionsFlow(OptionsFlow):
             data_keys = {
                 CONF_POOL_NAME, CONF_VOLUME_M3, CONF_POOL_TYPE, CONF_SURFACE_TYPE,
                 CONF_TEMP_ENTITY, CONF_PH_ENTITY, CONF_ORP_ENTITY, CONF_FC_ENTITY,
-                CONF_SALT_ENTITY, CONF_PUMP_SWITCH, CONF_WEATHER_ENTITY,
+                CONF_SALT_ENTITY, CONF_PUMP_SWITCH, CONF_PUMP_STATE, CONF_WEATHER_ENTITY,
             }
             option_keys = {
                 CONF_TARGET_PH, CONF_TARGET_FC, CONF_FILTERING_MODE,
@@ -157,6 +159,7 @@ class PoolPilotOptionsFlow(OptionsFlow):
 
         sensor = EntitySelector(EntitySelectorConfig(domain="sensor"))
         switch = EntitySelector(EntitySelectorConfig(domain=["switch", "input_boolean"]))
+        pump_state = EntitySelector(EntitySelectorConfig(domain=["binary_sensor", "switch", "input_boolean"]))
         weather = EntitySelector(EntitySelectorConfig(domain="weather"))
         schema = {
             vol.Required(CONF_POOL_NAME, default=self._current(CONF_POOL_NAME, "Piscine")): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
@@ -164,7 +167,8 @@ class PoolPilotOptionsFlow(OptionsFlow):
             vol.Required(CONF_POOL_TYPE, default=self._current(CONF_POOL_TYPE, POOL_TYPE_CHLORINE)): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_SURFACE_TYPE, default=self._current(CONF_SURFACE_TYPE, "liner")): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             (vol.Required(CONF_TEMP_ENTITY, default=self._current(CONF_TEMP_ENTITY)) if self._current(CONF_TEMP_ENTITY, None) else vol.Required(CONF_TEMP_ENTITY)): sensor,
-            (vol.Required(CONF_PUMP_SWITCH, default=self._current(CONF_PUMP_SWITCH)) if self._current(CONF_PUMP_SWITCH, None) else vol.Required(CONF_PUMP_SWITCH)): switch,
+            self._optional_entity(CONF_PUMP_SWITCH): switch,
+            self._optional_entity(CONF_PUMP_STATE): pump_state,
             (vol.Required(CONF_WEATHER_ENTITY, default=self._current(CONF_WEATHER_ENTITY)) if self._current(CONF_WEATHER_ENTITY, None) else vol.Required(CONF_WEATHER_ENTITY)): weather,
             self._optional_entity(CONF_PH_ENTITY): sensor,
             self._optional_entity(CONF_ORP_ENTITY): sensor,

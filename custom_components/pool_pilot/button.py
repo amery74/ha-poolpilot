@@ -30,7 +30,7 @@ class PoolPilotButton(PoolPilotEntity, ButtonEntity):
         self.entity_description = description
     async def async_press(self) -> None:
         action = self.entity_description.action
-        pump = self.coordinator.config_entry.data.get(CONF_PUMP_SWITCH)
+        pump = self.coordinator._pump_control_entity()
         if action == "toggle_auto_schedule":
             await self.coordinator.async_toggle_auto_schedule()
             return
@@ -44,12 +44,12 @@ class PoolPilotButton(PoolPilotEntity, ButtonEntity):
                 raise HomeAssistantError(str(err)) from err
             return
         if action == "start_pump":
-            if not pump: raise HomeAssistantError("Aucune entité pompe configurée")
+            if not pump: raise HomeAssistantError("Aucune commande de pompe pilotable n’est configurée")
             await self.coordinator.async_stop_auto_filter(turn_off=False)
             await self.hass.services.async_call("homeassistant", "turn_on", {"entity_id": pump}, blocking=True)
             await self.coordinator.async_request_refresh(); return
         if action == "stop_pump":
-            if not pump: raise HomeAssistantError("Aucune entité pompe configurée")
+            if not pump: raise HomeAssistantError("Aucune commande de pompe pilotable n’est configurée")
             await self.coordinator.async_stop_auto_filter(turn_off=True)
             return
         if action == "current_action":

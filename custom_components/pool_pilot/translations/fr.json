@@ -13,7 +13,7 @@
       },
       "entities": {
         "title": "Entités Home Assistant",
-        "description": "Sélectionne les capteurs et commandes déjà existants.",
+        "description": "Sélectionne les capteurs existants. La commande de pompe est facultative : utilise un switch/input_boolean pour permettre le pilotage. Un binary_sensor peut être renseigné séparément pour suivre uniquement l’état.",
         "data": {
           "temp_entity": "Température eau",
           "ph_entity": "pH",
@@ -23,11 +23,12 @@
           "ch_entity": "Dureté calcium",
           "cya_entity": "Stabilisant CYA",
           "salt_entity": "Sel",
-          "pump_switch": "Commande pompe",
+          "pump_switch": "Commande pompe (optionnelle)",
           "heatpump_entity": "Pompe à chaleur",
           "weather_entity": "Météo",
           "forecast_temp_entity": "Température prévue",
-          "cover_entity": "Couverture / volet"
+          "cover_entity": "Couverture / volet",
+          "pump_state": "État de la pompe (optionnel)"
         }
       }
     },
@@ -66,7 +67,9 @@
           "max_filter_hours": "Filtration maximum",
           "heat_pump_priority": "Priorité PAC",
           "free_chlorine_mode": "Source du chlore libre (compatibilité)",
-          "disinfection_mode": "Système de désinfection / mesure"
+          "disinfection_mode": "Système de désinfection / mesure",
+          "pump_switch": "Commande pompe (switch, optionnelle)",
+          "pump_state": "État pompe (binary_sensor, optionnel)"
         }
       }
     },

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.1.1
+
+### Fixed
+- The filtration pump is no longer mandatory during setup.
+- A read-only `binary_sensor` can now be selected separately as the pump state.
+- Pool Pilot only sends commands to controllable `switch` or `input_boolean` entities.
+- Setup labels and documentation now distinguish pump command from pump state.
+- Version metadata and release documentation were updated.
+
+
 ## v1.1.0-beta.1
 
 ### Fixed

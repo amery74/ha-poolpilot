@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "1.1.0-beta.1"
+VERSION: Final = "1.1.1"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -19,6 +19,7 @@ CONF_CH_ENTITY: Final = "ch_entity"
 CONF_CYA_ENTITY: Final = "cya_entity"
 CONF_SALT_ENTITY: Final = "salt_entity"
 CONF_PUMP_SWITCH: Final = "pump_switch"
+CONF_PUMP_STATE: Final = "pump_state"
 CONF_HEATPUMP_ENTITY: Final = "heatpump_entity"
 CONF_WEATHER_ENTITY: Final = "weather_entity"
 CONF_FORECAST_TEMP_ENTITY: Final = "forecast_temp_entity"

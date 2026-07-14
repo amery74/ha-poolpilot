@@ -276,7 +276,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
         entities = [self.config_entry.data.get(k) for k in (
             CONF_TEMP_ENTITY, CONF_PH_ENTITY, CONF_ORP_ENTITY, CONF_FC_ENTITY, CONF_TA_ENTITY,
-            CONF_CH_ENTITY, CONF_CYA_ENTITY, CONF_SALT_ENTITY, CONF_PUMP_SWITCH, CONF_HEATPUMP_ENTITY,
+            CONF_CH_ENTITY, CONF_CYA_ENTITY, CONF_SALT_ENTITY, CONF_PUMP_SWITCH, CONF_PUMP_STATE, CONF_HEATPUMP_ENTITY,
             CONF_WEATHER_ENTITY, CONF_FORECAST_TEMP_ENTITY, CONF_COVER_ENTITY)]
         entities = [e for e in entities if e]
         if entities:
@@ -865,8 +865,23 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             return now
         return start + timedelta(days=1)
 
+    def _pump_control_entity(self) -> str | None:
+        """Return the controllable pump entity, if configured."""
+        entity_id = self.config_entry.data.get(CONF_PUMP_SWITCH)
+        if not entity_id:
+            return None
+        domain = str(entity_id).split(".", 1)[0]
+        return entity_id if domain in {"switch", "input_boolean"} else None
+
+    def _pump_state_entity(self) -> str | None:
+        """Return the entity used to read the pump state."""
+        return (
+            self.config_entry.data.get(CONF_PUMP_STATE)
+            or self.config_entry.data.get(CONF_PUMP_SWITCH)
+        )
+
     async def _async_scheduler_turn_pump_off_if_owned(self) -> None:
-        pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
+        pump = self._pump_control_entity()
         if pump and self._auto_schedule_owns_pump:
             await self.hass.services.async_call("homeassistant", "turn_off", {"entity_id": pump}, blocking=True)
         self._auto_schedule_owns_pump = False
@@ -877,7 +892,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         Enabled once, it runs every day in a window centered on the configured hour,
         until the smart target computed from water temperature and weather is met.
         """
-        pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
+        pump = self._pump_control_entity()
         if not pump:
             return
         self._reset_auto_day_if_needed()
@@ -927,9 +942,9 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
     async def async_start_auto_filter(self, duration_hours: float | None = None) -> None:
         """Start pump for the recommended filtration duration, then stop it automatically."""
-        pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
+        pump = self._pump_control_entity()
         if not pump:
-            raise ValueError("Aucune entité pompe configurée")
+            raise ValueError("Aucune commande de pompe pilotable n’est configurée")
         data = self.data or self._calculate()
         hours = float(duration_hours or data.recommended_filter_hours or 0)
         min_h = float(self.option(CONF_MIN_FILTER_HOURS, DEFAULT_MIN_FILTER_HOURS))
@@ -962,7 +977,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._auto_filter_unsub = None
         self._auto_filter_start = None
         self._auto_filter_end = None
-        pump = self.config_entry.data.get(CONF_PUMP_SWITCH)
+        pump = self._pump_control_entity()
         if turn_off and pump:
             await self.hass.services.async_call("homeassistant", "turn_off", {"entity_id": pump}, blocking=True)
         await self.async_request_refresh()
@@ -1710,7 +1725,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             chlorine_source = "capteur"
         active_chlorine, active_chlorine_percent, disinfection_power = self._active_chlorine(fc, ph, temp, cya)
         lsi, lsi_status, phs, minf, tds, taylor_comment = self._lsi(ph, temp, ta, ch, salt)
-        pump_on = self._is_on(d.get(CONF_PUMP_SWITCH))
+        pump_on = self._is_on(self._pump_state_entity())
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
         cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
         hours, weather_factor = self._filter_hours(temp, forecast, cover)
