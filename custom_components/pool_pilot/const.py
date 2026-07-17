@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "1.2.0-beta.1"
+VERSION: Final = "1.2.1-beta"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -76,7 +76,7 @@ DEFAULT_MAX_FILTER_HOURS = 24.0
 DEFAULT_FREE_CHLORINE_MODE = "measured"
 CHLORINE_MODES = ["measured", "estimated"]
 
-PLATFORMS = ["sensor", "number", "button", "select", "switch"]
+PLATFORMS = ["sensor", "number", "button", "select", "switch", "time"]
 
 # Auto intelligent filtration defaults
 CONF_AUTO_START_TIME: Final = "auto_start_time"

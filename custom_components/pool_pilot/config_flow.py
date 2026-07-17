@@ -58,7 +58,7 @@ FILTERING_MODE_OPTIONS = [
 
 class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    MINOR_VERSION = 5
+    MINOR_VERSION = 6
 
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}

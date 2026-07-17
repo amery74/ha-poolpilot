@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.2.1-beta
+
+### Added
+- Exposed the automatic-filtration placement mode as a controllable `select` entity.
+- Exposed the minimum start time and maximum end time as controllable `time` entities.
+- Added French entity names and translated placement states for the new controls.
+
+### Fixed
+- The Dashboard can now change centered/window placement and the authorized filtration window without reopening the integration options.
+- Existing saved values remain the source of truth and are preserved during the update.
+
+
 ## v1.2.0-beta.1
 
 ### Added

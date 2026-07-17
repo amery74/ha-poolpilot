@@ -235,8 +235,23 @@
     "select": {
       "filtering_mode": {
         "name": "Mode filtration"
+      },
+      "filtration_placement_mode": {
+        "name": "Placement de la filtration automatique",
+        "state": {
+          "centered": "Centrer autour de l’heure centrale",
+          "window": "Respecter une plage horaire"
+        }
       }
     },
-    "switch": {}
+    "switch": {},
+    "time": {
+      "auto_start_time": {
+        "name": "Heure de début minimale"
+      },
+      "auto_end_time": {
+        "name": "Heure de fin maximale"
+      }
+    }
   }
 }

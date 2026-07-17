@@ -71,7 +71,9 @@ Les options avancées permettent d’ajuster :
 - chlore libre cible ;
 - durée minimale et maximale de filtration ;
 - coefficient de filtration ;
+- mode de placement de la filtration automatique ;
 - heure centrale de filtration ;
+- heure de début minimale et heure de fin maximale ;
 - seuils de température ;
 - sensibilité au risque d’algues ;
 - notifications.
@@ -82,7 +84,9 @@ Pool Pilot expose notamment : état de santé de l’eau, alertes, balance de Ta
 
 ## Filtration intelligente
 
-Le mode auto intelligent calcule chaque jour une durée de filtration à partir de la température de l’eau, de la météo prévue, des seuils configurés, des limites minimum/maximum et de la plage horaire autorisée.
+Le mode auto intelligent calcule chaque jour une durée de filtration à partir de la température de l’eau, de la météo prévue et des limites minimum/maximum.
+
+La période peut être centrée autour d’une heure choisie, ou contrainte entre une heure de début minimale et une heure de fin maximale. Ces trois réglages sont exposés sous forme d’entités `select`, `number` et `time`, afin d’être pilotables depuis le Dashboard ou une automatisation Home Assistant.
 
 Le cycle expose dans ses attributs : état, durée cible, durée déjà effectuée, limite de fin, prochaine programmation, fenêtres prévues et détail du calcul.
 
@@ -124,8 +128,8 @@ Les warnings Home Assistant indiquant qu’une intégration personnalisée n’e
 
 ## Versions recommandées
 
-- Pool Pilot : **v1.1.1** ou plus récent.
-- Pool Pilot Dashboard : **v1.1.1** ou plus récent.
+- Pool Pilot : **v1.2.1-beta** ou plus récent.
+- Pool Pilot Dashboard : **v1.2.1-beta** ou plus récent.
 - Home Assistant : version récente avec HACS.
 
 ## Licence
