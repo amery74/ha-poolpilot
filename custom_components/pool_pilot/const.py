@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "1.1.1"
+VERSION: Final = "1.2.0-beta.1"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -36,6 +36,30 @@ CONF_FREE_CHLORINE_MODE: Final = "free_chlorine_mode"
 CONF_DISINFECTION_MODE: Final = "disinfection_mode"
 DISINFECTION_MODES = ["chlorine", "orp", "hybrid"]
 DEFAULT_DISINFECTION_MODE = "orp"
+
+# Disinfection measurement (user-selected; never auto-detected)
+MEASUREMENT_MODE_ORP: Final = "orp"
+MEASUREMENT_MODE_CHLORINE: Final = "chlorine"
+MEASUREMENT_MODES = [MEASUREMENT_MODE_ORP, MEASUREMENT_MODE_CHLORINE]
+
+# Electrolyzer support
+CONF_ELECTROLYZER_TYPE: Final = "electrolyzer_type"
+CONF_ELECTROLYZER_SWITCH: Final = "electrolyzer_switch"
+CONF_ELECTROLYZER_OUTPUT_ENTITY: Final = "electrolyzer_output_entity"
+CONF_ELECTROLYZER_BOOST_ENTITY: Final = "electrolyzer_boost_entity"
+CONF_ELECTROLYZER_STATUS_ENTITY: Final = "electrolyzer_status_entity"
+ELECTROLYZER_TYPE_NONE: Final = "none"
+ELECTROLYZER_TYPE_SIMPLE: Final = "simple"
+ELECTROLYZER_TYPE_ADVANCED: Final = "advanced"
+ELECTROLYZER_TYPES = [ELECTROLYZER_TYPE_NONE, ELECTROLYZER_TYPE_SIMPLE, ELECTROLYZER_TYPE_ADVANCED]
+DEFAULT_ELECTROLYZER_TYPE: Final = ELECTROLYZER_TYPE_NONE
+
+# Smart filtration placement
+CONF_FILTRATION_PLACEMENT_MODE: Final = "filtration_placement_mode"
+FILTRATION_PLACEMENT_CENTERED: Final = "centered"
+FILTRATION_PLACEMENT_WINDOW: Final = "window"
+FILTRATION_PLACEMENT_MODES = [FILTRATION_PLACEMENT_CENTERED, FILTRATION_PLACEMENT_WINDOW]
+DEFAULT_FILTRATION_PLACEMENT_MODE: Final = FILTRATION_PLACEMENT_CENTERED
 
 POOL_TYPE_CHLORINE = "chlorine"
 POOL_TYPE_SALT = "saltwater"

@@ -189,6 +189,11 @@ class PoolPilotData:
     pump_on: bool | None = None
     heatpump_on: bool | None = None
     cover_closed: bool | None = None
+    electrolyzer_type: str = ELECTROLYZER_TYPE_NONE
+    electrolyzer_on: bool | None = None
+    electrolyzer_output_percent: float | None = None
+    electrolyzer_boost_on: bool | None = None
+    electrolyzer_status: str | None = None
     recommended_filter_hours: float | None = None
     weather_factor: float = 1.0
     chemistry_status: str = "unknown"
@@ -777,38 +782,43 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             return int(h), int(m)
 
     def _allowed_window_today(self) -> tuple[datetime, datetime]:
-        """Return the daily smart-filtration window centered on the configured hour.
+        """Return today's allowed smart-filtration interval.
 
-        Example: 16 h target centered on 12:00 gives 04:00 → 20:00.
-        The old fixed 07:00 → 22:00 window is intentionally not used anymore.
+        ``centered`` keeps the historical behavior: the automatically calculated
+        duration is centered around the user-selected central hour. ``window``
+        starts no earlier than ``auto_start_time`` and ends no later than
+        ``auto_end_time``. The duration calculation itself remains automatic.
         """
         now = dt_util.now()
         today = now.date()
-        target = 0.0
+        base = dt_util.as_local(datetime.combine(today, datetime.min.time())).replace(second=0, microsecond=0)
+        placement = str(self.option(CONF_FILTRATION_PLACEMENT_MODE, DEFAULT_FILTRATION_PLACEMENT_MODE))
+        if placement == FILTRATION_PLACEMENT_WINDOW:
+            sh, sm = self._parse_time_option(CONF_AUTO_START_TIME, DEFAULT_AUTO_START_TIME)
+            eh, em = self._parse_time_option(CONF_AUTO_END_TIME, DEFAULT_AUTO_END_TIME)
+            start = base + timedelta(hours=sh, minutes=sm)
+            end = base + timedelta(hours=eh, minutes=em)
+            if end <= start:
+                end += timedelta(days=1)
+            return start, end
+
         try:
-            # Avoid recursion from _auto_schedule_target_hours by reading the current data
-            # or doing a direct calculation when needed.
             data = self.data or self._calculate()
             target = float(data.recommended_filter_hours or 0.0)
         except Exception:
             target = 0.0
-        if target <= 0:
-            target = 0.1
-        target = min(24.0, max(0.1, target))
+        target = min(24.0, max(0.1, target or 0.1))
         center_hour = float(self.option(CONF_FILTRATION_CENTER_HOUR, DEFAULT_FILTRATION_CENTER_HOUR))
         center_hour = max(0.0, min(23.5, center_hour))
-        base = dt_util.as_local(datetime.combine(today, datetime.min.time())).replace(second=0, microsecond=0)
         center = base + timedelta(hours=center_hour)
         start = center - timedelta(hours=target / 2)
         end = center + timedelta(hours=target / 2)
-        # Keep the window on the same day where possible; clamp very long windows to 00:00 → 23:59.
-        day_start = base
         day_end = base + timedelta(days=1)
-        if start < day_start:
-            end = min(day_end, end + (day_start - start))
-            start = day_start
+        if start < base:
+            end = min(day_end, end + (base - start))
+            start = base
         if end > day_end:
-            start = max(day_start, start - (end - day_end))
+            start = max(base, start - (end - day_end))
             end = day_end
         return start, end
 
@@ -834,7 +844,11 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 cover = self._cover_closed(self.config_entry.data.get(CONF_COVER_ENTITY))
                 recommended_hours, _weather_factor = self._filter_hours(temp, forecast, cover)
         target = float(recommended_hours or 0.0)
-        return round(max(0.0, min(target, 24.0)), 2)
+        target = max(0.0, min(target, 24.0))
+        if str(self.option(CONF_FILTRATION_PLACEMENT_MODE, DEFAULT_FILTRATION_PLACEMENT_MODE)) == FILTRATION_PLACEMENT_WINDOW:
+            start, end = self._allowed_window_today()
+            target = min(target, max(0.0, (end - start).total_seconds() / 3600))
+        return round(target, 2)
 
     def _today_schedule_windows(self) -> list[tuple[datetime, datetime]]:
         """Auto intelligent uses one allowed daily window.
@@ -864,6 +878,33 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         if start <= now < end and done < target:
             return now
         return start + timedelta(days=1)
+
+    def _entity_state_text(self, entity_id: str | None) -> str | None:
+        if not entity_id:
+            return None
+        state = self.hass.states.get(entity_id)
+        if state is None or state.state in BAD_STATES:
+            return None
+        return str(state.state)
+
+    def _electrolyzer_snapshot(self) -> tuple[str, bool | None, float | None, bool | None, str | None]:
+        etype = str(self.option(CONF_ELECTROLYZER_TYPE, DEFAULT_ELECTROLYZER_TYPE) or DEFAULT_ELECTROLYZER_TYPE)
+        if etype not in ELECTROLYZER_TYPES:
+            etype = DEFAULT_ELECTROLYZER_TYPE
+        switch_entity = self.config_entry.data.get(CONF_ELECTROLYZER_SWITCH)
+        output_entity = self.config_entry.data.get(CONF_ELECTROLYZER_OUTPUT_ENTITY)
+        boost_entity = self.config_entry.data.get(CONF_ELECTROLYZER_BOOST_ENTITY)
+        status_entity = self.config_entry.data.get(CONF_ELECTROLYZER_STATUS_ENTITY)
+        output = self._float(output_entity)
+        if output is not None:
+            output = round(max(0.0, min(100.0, output)), 1)
+        return (
+            etype,
+            self._is_on(switch_entity),
+            output,
+            self._is_on(boost_entity),
+            self._entity_state_text(status_entity),
+        )
 
     def _pump_control_entity(self) -> str | None:
         """Return the controllable pump entity, if configured."""
@@ -1728,6 +1769,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         pump_on = self._is_on(self._pump_state_entity())
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
         cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
+        electrolyzer_type, electrolyzer_on, electrolyzer_output, electrolyzer_boost, electrolyzer_status = self._electrolyzer_snapshot()
         hours, weather_factor = self._filter_hours(temp, forecast, cover)
         self._record_live_measurement(ph, orp, temp, fc)
 
@@ -1796,14 +1838,24 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         correction_summary = None
         center_hour = float(self.option(CONF_FILTRATION_CENTER_HOUR, DEFAULT_FILTRATION_CENTER_HOUR))
         center_hour = max(0.0, min(23.5, center_hour))
+        placement_mode = str(self.option(CONF_FILTRATION_PLACEMENT_MODE, DEFAULT_FILTRATION_PLACEMENT_MODE))
+        available_hours = round(max(0.0, (end - start).total_seconds() / 3600), 2)
+        scheduled_hours = min(float(hours or 0.0), available_hours) if placement_mode == FILTRATION_PLACEMENT_WINDOW else float(hours or 0.0)
         detail = {
             "mode": "auto",
             "disinfection_mode": disinfection_mode,
             "start": start.strftime("%H:%M"),
             "end": end.strftime("%H:%M"),
             "window_label": f"{start.strftime('%H:%M')} → {end.strftime('%H:%M')}",
-            "center_hour": center_hour,
-            "center_label": f"Centrée sur {center_hour:g} h",
+            "placement_mode": placement_mode,
+            "center_hour": center_hour if placement_mode == FILTRATION_PLACEMENT_CENTERED else None,
+            "center_label": f"Centrée sur {center_hour:g} h" if placement_mode == FILTRATION_PLACEMENT_CENTERED else None,
+            "earliest_start": self.option(CONF_AUTO_START_TIME, DEFAULT_AUTO_START_TIME) if placement_mode == FILTRATION_PLACEMENT_WINDOW else None,
+            "latest_end": self.option(CONF_AUTO_END_TIME, DEFAULT_AUTO_END_TIME) if placement_mode == FILTRATION_PLACEMENT_WINDOW else None,
+            "requested_hours": hours,
+            "scheduled_hours": round(scheduled_hours, 2),
+            "window_capacity_hours": available_hours,
+            "duration_constrained": bool(hours is not None and scheduled_hours + 0.01 < float(hours)),
             "water_temp_c": temp,
             "forecast_temp_c": forecast,
             "forecast_source": self._forecast_daily_source,
@@ -1839,6 +1891,11 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             pump_on=pump_on,
             heatpump_on=hp_on,
             cover_closed=cover,
+            electrolyzer_type=electrolyzer_type,
+            electrolyzer_on=electrolyzer_on,
+            electrolyzer_output_percent=electrolyzer_output,
+            electrolyzer_boost_on=electrolyzer_boost,
+            electrolyzer_status=electrolyzer_status,
             recommended_filter_hours=hours,
             weather_factor=weather_factor,
             chemistry_status=chemistry_status,

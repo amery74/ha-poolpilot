@@ -8,7 +8,9 @@
           "pool_name": "Nom",
           "volume_m3": "Volume",
           "pool_type": "Traitement",
-          "surface_type": "Revêtement"
+          "surface_type": "Revêtement",
+          "disinfection_mode": "Mesure de désinfection utilisée",
+          "electrolyzer_type": "Type d’électrolyseur"
         }
       },
       "entities": {
@@ -28,7 +30,11 @@
           "weather_entity": "Météo",
           "forecast_temp_entity": "Température prévue",
           "cover_entity": "Couverture / volet",
-          "pump_state": "État de la pompe (optionnel)"
+          "pump_state": "État de la pompe (optionnel)",
+          "electrolyzer_switch": "Commande marche / arrêt de l’électrolyseur (optionnelle)",
+          "electrolyzer_output_entity": "Pourcentage de production de l’électrolyseur (optionnel)",
+          "electrolyzer_boost_entity": "Commande Boost de l’électrolyseur (optionnelle)",
+          "electrolyzer_status_entity": "État ou diagnostic de l’électrolyseur (optionnel)"
         }
       }
     },
@@ -60,16 +66,23 @@
           "target_ph": "pH cible",
           "target_fc": "Chlore libre cible",
           "filtering_mode": "Mode filtration",
-          "auto_start_time": "Début filtration auto",
-          "auto_end_time": "Fin filtration auto",
+          "auto_start_time": "Heure de début minimale (HH:MM)",
+          "auto_end_time": "Heure de fin maximale (HH:MM)",
           "filter_coef": "Coefficient filtration",
           "min_filter_hours": "Filtration minimum",
           "max_filter_hours": "Filtration maximum",
           "heat_pump_priority": "Priorité PAC",
           "free_chlorine_mode": "Source du chlore libre (compatibilité)",
-          "disinfection_mode": "Système de désinfection / mesure",
+          "disinfection_mode": "Mesure de désinfection utilisée",
           "pump_switch": "Commande pompe (switch, optionnelle)",
-          "pump_state": "État pompe (binary_sensor, optionnel)"
+          "pump_state": "État pompe (binary_sensor, optionnel)",
+          "electrolyzer_type": "Type d’électrolyseur",
+          "electrolyzer_switch": "Commande électrolyseur",
+          "electrolyzer_output_entity": "Production électrolyseur (%)",
+          "electrolyzer_boost_entity": "Commande Boost",
+          "electrolyzer_status_entity": "État électrolyseur",
+          "filtration_placement_mode": "Placement de la filtration automatique",
+          "filtration_center_hour": "Heure centrale"
         }
       }
     },
@@ -177,6 +190,9 @@
       },
       "taylor_status": {
         "name": "Balance de Taylor"
+      },
+      "electrolyzer": {
+        "name": "Électrolyseur"
       }
     },
     "number": {

@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.2.0-beta.1
+
+### Added
+- Explicit user choice between ORP/RedOx and free-chlorine measurement.
+- Simple or advanced electrolyzer configuration.
+- Optional electrolyzer production, Boost and status entities.
+- Choice between centered automatic filtration and a bounded daily window.
+- Detailed filtration attributes showing requested, scheduled and constrained duration.
+
+### Fixed
+- Configuration validation now requires the entity matching the selected measurement mode on new installations.
+- Automatic scheduling never exceeds the user-defined filtration window.
+- Existing 1.1.x installations remain compatible through defaults and option fallbacks.
+
+
 ## v1.1.1
 
 ### Fixed
