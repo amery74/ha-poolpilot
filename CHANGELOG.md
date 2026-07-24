@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.2-beta
+- Mode Maintenance avec suspension des automatismes et maintien des mesures.
+- Commande facultative du volet (ouvrir, arrêter, fermer, état et position).
+- Progression quotidienne de filtration : réalisé, prévu, pourcentage et temps restant.
+- Jauge ORP/chlore harmonisée avec la jauge pH.
+- Boost électrolyseur utilisable en mode simple ou avancé.
+- Enregistrement automatique des alertes et récapitulatifs dans le carnet.
+- Amélioration du bouton de mesure, du logo central et de la stabilité du défilement.
+
+# Changelog
+
 ## v1.2.1-beta
 
 ### Added

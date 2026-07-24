@@ -195,8 +195,22 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.services.async_register(DOMAIN, "set_product_stock", set_product_stock, schema=SET_STOCK_SCHEMA)
     hass.services.async_register(DOMAIN, "confirm_product_added", confirm_product_added, schema=CONFIRM_SCHEMA)
     hass.services.async_register(DOMAIN, "remove_product", remove_product, schema=REMOVE_SCHEMA)
+    async def set_maintenance_mode(call: ServiceCall) -> None:
+        c = _coordinator_for_call(hass, call)
+        await c.async_set_maintenance_mode(bool(call.data.get("enabled", True)))
+
+    async def control_cover(call: ServiceCall) -> None:
+        c = _coordinator_for_call(hass, call)
+        action = str(call.data.get("action"))
+        if action == "open": await c.async_open_cover()
+        elif action == "close": await c.async_close_cover()
+        elif action == "stop": await c.async_stop_cover()
+        else: raise HomeAssistantError("Action de volet inconnue")
+
     hass.services.async_register(DOMAIN, "start_auto_filtration", start_auto_filtration, schema=START_AUTO_FILTER_SCHEMA)
     hass.services.async_register(DOMAIN, "stop_auto_filtration", stop_auto_filtration)
+    hass.services.async_register(DOMAIN, "set_maintenance_mode", set_maintenance_mode, schema=vol.Schema({vol.Required("enabled"): cv.boolean}))
+    hass.services.async_register(DOMAIN, "control_cover", control_cover, schema=vol.Schema({vol.Required("action"): vol.In(["open", "stop", "close"])}))
     hass.services.async_register(DOMAIN, "enable_auto_schedule", enable_auto_schedule)
     hass.services.async_register(DOMAIN, "disable_auto_schedule", disable_auto_schedule)
     hass.services.async_register(DOMAIN, "toggle_auto_schedule", toggle_auto_schedule)

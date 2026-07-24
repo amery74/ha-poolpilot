@@ -26,8 +26,8 @@ SWITCHES = (
 )
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    # v0.8.3 cleanup: no extra switch entities are exposed.
-    return
+    coordinator: PoolPilotCoordinator = entry.runtime_data
+    async_add_entities([PoolPilotMaintenanceSwitch(coordinator)])
 
 class PoolPilotAutoFilterSwitch(PoolPilotEntity, SwitchEntity):
     entity_description: PoolPilotSwitchDescription
@@ -90,3 +90,26 @@ class PoolPilotAutoScheduleSwitch(PoolPilotEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs) -> None:
         await self.coordinator.async_set_auto_schedule_enabled(False)
+
+
+class PoolPilotMaintenanceSwitch(PoolPilotEntity, SwitchEntity):
+    _attr_name = "Mode Maintenance"
+    _attr_icon = "mdi:tools"
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: PoolPilotCoordinator) -> None:
+        super().__init__(coordinator, "maintenance_mode")
+
+    @property
+    def is_on(self) -> bool:
+        return self.coordinator.maintenance_mode
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {"automation_suspended": self.coordinator.maintenance_mode, "measurements_recorded": True}
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self.coordinator.async_set_maintenance_mode(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self.coordinator.async_set_maintenance_mode(False)

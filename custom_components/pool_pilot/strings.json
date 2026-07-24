@@ -193,6 +193,9 @@
       },
       "electrolyzer": {
         "name": "Électrolyseur"
+      },
+      "filtration_progress": {
+        "name": "Progression filtration"
       }
     },
     "number": {
@@ -244,7 +247,11 @@
         }
       }
     },
-    "switch": {},
+    "switch": {
+      "maintenance_mode": {
+        "name": "Mode Maintenance"
+      }
+    },
     "time": {
       "auto_start_time": {
         "name": "Heure de début minimale"

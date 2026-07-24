@@ -189,6 +189,9 @@ class PoolPilotData:
     pump_on: bool | None = None
     heatpump_on: bool | None = None
     cover_closed: bool | None = None
+    cover_state: str | None = None
+    cover_position: int | None = None
+    maintenance_mode: bool = False
     electrolyzer_type: str = ELECTROLYZER_TYPE_NONE
     electrolyzer_on: bool | None = None
     electrolyzer_output_percent: float | None = None
@@ -223,6 +226,8 @@ class PoolPilotData:
     auto_schedule_next_start: datetime | None = None
     auto_schedule_target_hours: float | None = None
     auto_schedule_done_hours: float | None = None
+    filtration_progress_percent: float | None = None
+    filtration_remaining_hours: float | None = None
     auto_schedule_end_limit: str | None = None
     detail: dict[str, Any] = field(default_factory=dict)
 
@@ -240,6 +245,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._auto_filter_start: datetime | None = None
         self._auto_filter_end: datetime | None = None
         self._auto_schedule_enabled: bool = False
+        self._maintenance_mode: bool = False
         self._auto_schedule_unsub: Callable[[], None] | None = None
         self._auto_schedule_owns_pump: bool = False
         self.strip_test: dict[str, Any] = {}
@@ -256,6 +262,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._last_notified_recommendation_key: str | None = None
         self._last_stock_low_day: str | None = None
         self._last_battery_low_day: str | None = None
+        self._journal_alert_keys: set[str] = set()
+        self._last_journal_summary_day: str | None = None
 
     @property
     def pool_name(self) -> str:
@@ -510,11 +518,14 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
     async def async_load_scheduler_state(self) -> None:
         stored = await self._store.async_load() or {}
         self._auto_schedule_enabled = bool(stored.get("auto_schedule_enabled", False))
+        self._maintenance_mode = bool(stored.get("maintenance_mode", False))
+        self._journal_alert_keys = set(stored.get("journal_alert_keys", []))
+        self._last_journal_summary_day = stored.get("last_journal_summary_day")
         self._auto_schedule_day = stored.get("auto_schedule_day")
         self._auto_schedule_seconds_today = float(stored.get("auto_schedule_seconds_today", 0.0) or 0.0)
 
     async def async_save_products(self) -> None:
-        await self._store.async_save({"products": [p.as_dict() for p in self.products.values()], "auto_schedule_enabled": self._auto_schedule_enabled, "strip_test": self.strip_test, "raw_measurements": self.raw_measurements, "maintenance_journal": self.maintenance_journal, "auto_schedule_day": self._auto_schedule_day, "auto_schedule_seconds_today": self._auto_schedule_seconds_today})
+        await self._store.async_save({"products": [p.as_dict() for p in self.products.values()], "auto_schedule_enabled": self._auto_schedule_enabled, "strip_test": self.strip_test, "raw_measurements": self.raw_measurements, "maintenance_journal": self.maintenance_journal, "auto_schedule_day": self._auto_schedule_day, "auto_schedule_seconds_today": self._auto_schedule_seconds_today, "maintenance_mode": self._maintenance_mode, "journal_alert_keys": sorted(self._journal_alert_keys), "last_journal_summary_day": self._last_journal_summary_day})
         self.async_set_updated_data(self._calculate())
 
     async def async_add_product(self, **data: Any) -> str:
@@ -928,6 +939,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         self._auto_schedule_owns_pump = False
 
     async def _async_auto_schedule_tick(self, now: datetime) -> None:
+        if self._maintenance_mode:
+            return
         """Auto intelligent daily filtration.
 
         Enabled once, it runs every day in a window centered on the configured hour,
@@ -959,7 +972,47 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._auto_schedule_owns_pump = False
         self.async_set_updated_data(self._calculate())
 
+    @property
+    def maintenance_mode(self) -> bool:
+        return self._maintenance_mode
+
+    async def async_set_maintenance_mode(self, enabled: bool) -> None:
+        enabled = bool(enabled)
+        if enabled == self._maintenance_mode:
+            return
+        self._maintenance_mode = enabled
+        if enabled:
+            # Cancel only Pool Pilot-owned actions. Manual HA control remains available.
+            self._auto_schedule_enabled = False
+            await self._async_scheduler_turn_pump_off_if_owned()
+            await self.async_stop_auto_filter(turn_off=False)
+            self._append_journal_entry("maintenance", "Mode Maintenance activé", "Les automatismes Pool Pilot sont suspendus. Les mesures continuent d’être enregistrées.", entry_type="maintenance")
+        else:
+            self._append_journal_entry("maintenance", "Mode Maintenance désactivé", "Les automatismes Pool Pilot peuvent de nouveau être activés.", entry_type="maintenance")
+        await self.async_save_products()
+        await self.async_request_refresh()
+
+    async def async_open_cover(self) -> None:
+        entity = self.config_entry.data.get(CONF_COVER_ENTITY)
+        if not entity:
+            raise ValueError("Aucun volet n’est configuré")
+        await self.hass.services.async_call("cover", "open_cover", {"entity_id": entity}, blocking=True)
+
+    async def async_close_cover(self) -> None:
+        entity = self.config_entry.data.get(CONF_COVER_ENTITY)
+        if not entity:
+            raise ValueError("Aucun volet n’est configuré")
+        await self.hass.services.async_call("cover", "close_cover", {"entity_id": entity}, blocking=True)
+
+    async def async_stop_cover(self) -> None:
+        entity = self.config_entry.data.get(CONF_COVER_ENTITY)
+        if not entity:
+            raise ValueError("Aucun volet n’est configuré")
+        await self.hass.services.async_call("cover", "stop_cover", {"entity_id": entity}, blocking=True)
+
     async def async_start_recommended_filtration(self) -> None:
+        if self._maintenance_mode:
+            raise ValueError("Pool Pilot est en mode Maintenance")
         """Enable the smart recommended filtration schedule and apply it immediately.
 
         This is the action behind "Lancer filtration recommandée":
@@ -982,6 +1035,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         await self.async_request_refresh()
 
     async def async_start_auto_filter(self, duration_hours: float | None = None) -> None:
+        if self._maintenance_mode:
+            raise ValueError("Pool Pilot est en mode Maintenance")
         """Start pump for the recommended filtration duration, then stop it automatically."""
         pump = self._pump_control_entity()
         if not pump:
@@ -1138,12 +1193,31 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._forecast_daily_max_c = max(temps)
             self._forecast_daily_source = "weather.attributes.forecast"
 
+    async def _sync_automatic_journal(self, data: PoolPilotData) -> None:
+        active_keys: set[str] = set()
+        for alert in data.pool_alerts:
+            key = str(alert.get("id") or alert.get("title") or alert.get("message") or "alert")
+            active_keys.add(key)
+            if key not in self._journal_alert_keys:
+                self._append_journal_entry("alert", str(alert.get("title") or "Alerte Pool Pilot"), str(alert.get("message") or alert.get("description") or ""), alert_key=key, entry_type="alert")
+        self._journal_alert_keys = active_keys
+        today = dt_util.now().date().isoformat()
+        if self._last_journal_summary_day != today and dt_util.now().hour >= 23:
+            done = round(self._auto_schedule_seconds_today / 3600, 2)
+            self._append_journal_entry("filtration", "Récapitulatif quotidien", f"Filtration réalisée : {done:g} h. État de l’eau : {data.chemistry_status}. Alertes actives : {len(data.pool_alerts)}.", entry_type="summary", summary_day=today)
+            self._last_journal_summary_day = today
+        await self.async_save_products()
+
     async def _async_update_data(self) -> PoolPilotData:
         try:
             await self._async_refresh_forecast_daily_max()
         except Exception:
             _LOGGER.exception("Pool Pilot: weather forecast refresh failed")
         data = self._calculate()
+        try:
+            await self._sync_automatic_journal(data)
+        except Exception:
+            _LOGGER.exception("Pool Pilot: automatic journal update failed")
         try:
             await self._handle_notifications(data)
         except Exception:
@@ -1768,7 +1842,15 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         lsi, lsi_status, phs, minf, tds, taylor_comment = self._lsi(ph, temp, ta, ch, salt)
         pump_on = self._is_on(self._pump_state_entity())
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
-        cover = self._cover_closed(d.get(CONF_COVER_ENTITY))
+        cover_entity = d.get(CONF_COVER_ENTITY)
+        cover = self._cover_closed(cover_entity)
+        cover_state = self._entity_state_text(cover_entity)
+        cover_obj = self.hass.states.get(cover_entity) if cover_entity else None
+        cover_position = cover_obj.attributes.get("current_position") if cover_obj else None
+        try:
+            cover_position = int(cover_position) if cover_position is not None else None
+        except (TypeError, ValueError):
+            cover_position = None
         electrolyzer_type, electrolyzer_on, electrolyzer_output, electrolyzer_boost, electrolyzer_status = self._electrolyzer_snapshot()
         hours, weather_factor = self._filter_hours(temp, forecast, cover)
         self._record_live_measurement(ph, orp, temp, fc)
@@ -1821,6 +1903,14 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         if auto_active:
             auto_filter_summary = "Filtration automatique en cours"
 
+        progress_target = schedule_target if schedule_target is not None else (float(hours or 0.0) if hours is not None else None)
+        progress_done = schedule_done if schedule_done is not None else (round(max(0.0, ((dt_util.now() - self._auto_filter_start).total_seconds() / 3600)), 2) if self._auto_filter_start else 0.0)
+        progress_percent = None
+        progress_remaining = None
+        if progress_target is not None and progress_target > 0:
+            progress_percent = round(max(0.0, min(100.0, (float(progress_done or 0.0) / progress_target) * 100.0)), 1)
+            progress_remaining = round(max(0.0, progress_target - float(progress_done or 0.0)), 2)
+
         actions = []
         if auto_filter_summary != "idle":
             actions.append(auto_filter_summary)
@@ -1860,6 +1950,11 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             "forecast_temp_c": forecast,
             "forecast_source": self._forecast_daily_source,
             "weather_factor": weather_factor,
+            "maintenance_mode": self._maintenance_mode,
+            "filtration_progress_percent": progress_percent,
+            "filtration_remaining_hours": progress_remaining,
+            "cover_state": cover_state,
+            "cover_position": cover_position,
             "base_hours": round((temp / float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))), 2) if temp is not None else None,
         }
         return PoolPilotData(
@@ -1891,6 +1986,9 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             pump_on=pump_on,
             heatpump_on=hp_on,
             cover_closed=cover,
+            cover_state=cover_state,
+            cover_position=cover_position,
+            maintenance_mode=self._maintenance_mode,
             electrolyzer_type=electrolyzer_type,
             electrolyzer_on=electrolyzer_on,
             electrolyzer_output_percent=electrolyzer_output,
@@ -1925,6 +2023,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             auto_schedule_next_start=schedule_next,
             auto_schedule_target_hours=schedule_target,
             auto_schedule_done_hours=schedule_done,
+            filtration_progress_percent=progress_percent,
+            filtration_remaining_hours=progress_remaining,
             auto_schedule_end_limit=end.strftime("%H:%M"),
             detail=detail,
         )

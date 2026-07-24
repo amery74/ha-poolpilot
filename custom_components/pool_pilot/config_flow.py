@@ -108,6 +108,7 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
         electrolyzer_switch = EntitySelector(EntitySelectorConfig(domain=["switch", "input_boolean"]))
         electrolyzer_output = EntitySelector(EntitySelectorConfig(domain=["number", "input_number", "sensor"]))
         electrolyzer_boost = EntitySelector(EntitySelectorConfig(domain=["switch", "input_boolean", "button"]))
+        cover = EntitySelector(EntitySelectorConfig(domain="cover"))
         any_state = EntitySelector(EntitySelectorConfig())
         mode = self._data.get(CONF_DISINFECTION_MODE, DEFAULT_DISINFECTION_MODE)
         electrolyzer_type = self._data.get(CONF_ELECTROLYZER_TYPE, DEFAULT_ELECTROLYZER_TYPE)
@@ -116,6 +117,7 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
             vol.Optional(CONF_PUMP_SWITCH): switch,
             vol.Optional(CONF_PUMP_STATE): pump_state,
             vol.Required(CONF_WEATHER_ENTITY): weather,
+            vol.Optional(CONF_COVER_ENTITY): cover,
             vol.Optional(CONF_PH_ENTITY): sensor,
             (vol.Required(CONF_ORP_ENTITY) if mode == MEASUREMENT_MODE_ORP else vol.Optional(CONF_ORP_ENTITY)): sensor,
             (vol.Required(CONF_FC_ENTITY) if mode == MEASUREMENT_MODE_CHLORINE else vol.Optional(CONF_FC_ENTITY)): sensor,
@@ -196,6 +198,7 @@ class PoolPilotOptionsFlow(OptionsFlow):
         electrolyzer_output = EntitySelector(EntitySelectorConfig(domain=["number", "input_number", "sensor"]))
         electrolyzer_boost = EntitySelector(EntitySelectorConfig(domain=["switch", "input_boolean", "button"]))
         any_state = EntitySelector(EntitySelectorConfig())
+        cover = EntitySelector(EntitySelectorConfig(domain="cover"))
         schema = {
             vol.Required(CONF_POOL_NAME, default=self._current(CONF_POOL_NAME, "Piscine")): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_VOLUME_M3, default=self._current(CONF_VOLUME_M3, 50.0)): NumberSelector(NumberSelectorConfig(min=1, max=500, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="m³")),
@@ -214,6 +217,7 @@ class PoolPilotOptionsFlow(OptionsFlow):
             self._optional_entity(CONF_ELECTROLYZER_SWITCH): electrolyzer_switch,
             self._optional_entity(CONF_ELECTROLYZER_OUTPUT_ENTITY): electrolyzer_output,
             self._optional_entity(CONF_ELECTROLYZER_BOOST_ENTITY): electrolyzer_boost,
+            self._optional_entity(CONF_COVER_ENTITY): cover,
             self._optional_entity(CONF_ELECTROLYZER_STATUS_ENTITY): any_state,
             vol.Required(CONF_TARGET_PH, default=self._current(CONF_TARGET_PH, DEFAULT_TARGET_PH)): NumberSelector(NumberSelectorConfig(min=6.8, max=8.0, step=0.1, mode=NumberSelectorMode.SLIDER)),
             vol.Required(CONF_TARGET_FC, default=self._current(CONF_TARGET_FC, DEFAULT_TARGET_FC)): NumberSelector(NumberSelectorConfig(min=0.5, max=10, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="ppm")),
