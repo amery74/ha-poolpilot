@@ -29,7 +29,6 @@
           "heatpump_entity": "Pompe à chaleur",
           "weather_entity": "Météo",
           "forecast_temp_entity": "Température prévue",
-          "cover_entity": "Couverture / volet",
           "pump_state": "État de la pompe (optionnel)",
           "electrolyzer_switch": "Commande marche / arrêt de l’électrolyseur (optionnelle)",
           "electrolyzer_output_entity": "Pourcentage de production de l’électrolyseur (optionnel)",

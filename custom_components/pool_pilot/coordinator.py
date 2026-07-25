@@ -188,9 +188,6 @@ class PoolPilotData:
     forecast_temp_c: float | None = None
     pump_on: bool | None = None
     heatpump_on: bool | None = None
-    cover_closed: bool | None = None
-    cover_state: str | None = None
-    cover_position: int | None = None
     maintenance_mode: bool = False
     electrolyzer_type: str = ELECTROLYZER_TYPE_NONE
     electrolyzer_on: bool | None = None
@@ -290,7 +287,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         entities = [self.config_entry.data.get(k) for k in (
             CONF_TEMP_ENTITY, CONF_PH_ENTITY, CONF_ORP_ENTITY, CONF_FC_ENTITY, CONF_TA_ENTITY,
             CONF_CH_ENTITY, CONF_CYA_ENTITY, CONF_SALT_ENTITY, CONF_PUMP_SWITCH, CONF_PUMP_STATE, CONF_HEATPUMP_ENTITY,
-            CONF_WEATHER_ENTITY, CONF_FORECAST_TEMP_ENTITY, CONF_COVER_ENTITY)]
+            CONF_WEATHER_ENTITY, CONF_FORECAST_TEMP_ENTITY)]
         entities = [e for e in entities if e]
         if entities:
             self._unsubscribe = async_track_state_change_event(self.hass, entities, self._async_state_changed)
@@ -852,8 +849,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             else:
                 temp = self._temp_c(self.config_entry.data.get(CONF_TEMP_ENTITY))
                 forecast = self._weather_forecast_temp()
-                cover = self._cover_closed(self.config_entry.data.get(CONF_COVER_ENTITY))
-                recommended_hours, _weather_factor = self._filter_hours(temp, forecast, cover)
+                recommended_hours, _weather_factor = self._filter_hours(temp, forecast, None)
         target = float(recommended_hours or 0.0)
         target = max(0.0, min(target, 24.0))
         if str(self.option(CONF_FILTRATION_PLACEMENT_MODE, DEFAULT_FILTRATION_PLACEMENT_MODE)) == FILTRATION_PLACEMENT_WINDOW:
@@ -991,24 +987,6 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             self._append_journal_entry("maintenance", "Mode Maintenance désactivé", "Les automatismes Pool Pilot peuvent de nouveau être activés.", entry_type="maintenance")
         await self.async_save_products()
         await self.async_request_refresh()
-
-    async def async_open_cover(self) -> None:
-        entity = self.config_entry.data.get(CONF_COVER_ENTITY)
-        if not entity:
-            raise ValueError("Aucun volet n’est configuré")
-        await self.hass.services.async_call("cover", "open_cover", {"entity_id": entity}, blocking=True)
-
-    async def async_close_cover(self) -> None:
-        entity = self.config_entry.data.get(CONF_COVER_ENTITY)
-        if not entity:
-            raise ValueError("Aucun volet n’est configuré")
-        await self.hass.services.async_call("cover", "close_cover", {"entity_id": entity}, blocking=True)
-
-    async def async_stop_cover(self) -> None:
-        entity = self.config_entry.data.get(CONF_COVER_ENTITY)
-        if not entity:
-            raise ValueError("Aucun volet n’est configuré")
-        await self.hass.services.async_call("cover", "stop_cover", {"entity_id": entity}, blocking=True)
 
     async def async_start_recommended_filtration(self) -> None:
         if self._maintenance_mode:
@@ -1842,17 +1820,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         lsi, lsi_status, phs, minf, tds, taylor_comment = self._lsi(ph, temp, ta, ch, salt)
         pump_on = self._is_on(self._pump_state_entity())
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
-        cover_entity = d.get(CONF_COVER_ENTITY)
-        cover = self._cover_closed(cover_entity)
-        cover_state = self._entity_state_text(cover_entity)
-        cover_obj = self.hass.states.get(cover_entity) if cover_entity else None
-        cover_position = cover_obj.attributes.get("current_position") if cover_obj else None
-        try:
-            cover_position = int(cover_position) if cover_position is not None else None
-        except (TypeError, ValueError):
-            cover_position = None
         electrolyzer_type, electrolyzer_on, electrolyzer_output, electrolyzer_boost, electrolyzer_status = self._electrolyzer_snapshot()
-        hours, weather_factor = self._filter_hours(temp, forecast, cover)
+        hours, weather_factor = self._filter_hours(temp, forecast, None)
         self._record_live_measurement(ph, orp, temp, fc)
 
         # Meteo-France yellow vigilance is informational only. Pool Pilot alerts are
@@ -1953,8 +1922,6 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             "maintenance_mode": self._maintenance_mode,
             "filtration_progress_percent": progress_percent,
             "filtration_remaining_hours": progress_remaining,
-            "cover_state": cover_state,
-            "cover_position": cover_position,
             "base_hours": round((temp / float(self.option(CONF_FILTER_COEF, DEFAULT_FILTER_COEF))), 2) if temp is not None else None,
         }
         return PoolPilotData(
@@ -1985,9 +1952,6 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             forecast_temp_c=forecast,
             pump_on=pump_on,
             heatpump_on=hp_on,
-            cover_closed=cover,
-            cover_state=cover_state,
-            cover_position=cover_position,
             maintenance_mode=self._maintenance_mode,
             electrolyzer_type=electrolyzer_type,
             electrolyzer_on=electrolyzer_on,

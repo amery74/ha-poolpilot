@@ -1,3 +1,9 @@
+## 1.2.3-beta
+
+- Correctifs ciblés : Maintenance, jauge de désinfection et progression de filtration.
+- La gestion du volet est retirée de l’intégration et reste exclusivement configurée dans la carte.
+- Aucun changement de la structure générale de l’interface.
+
 # Changelog
 
 ## 1.2.2-beta
