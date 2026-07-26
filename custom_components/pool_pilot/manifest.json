@@ -2,7 +2,7 @@
   "domain": "pool_pilot",
   "name": "Pool Pilot",
   "codeowners": [
-    "@antonin-mery"
+    "@amery74"
   ],
   "config_flow": true,
   "documentation": "https://github.com/amery74/ha-poolpilot",
@@ -11,6 +11,6 @@
   "requirements": [
     "pypoolchem>=0.1.1"
   ],
-  "version": "1.2.3-beta",
+  "version": "1.2.3",
   "issue_tracker": "https://github.com/amery74/ha-poolpilot/issues"
 }

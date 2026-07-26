@@ -1,0 +1,263 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pool Pilot",
+        "description": "Configuration générale de la piscine.",
+        "data": {
+          "pool_name": "Nom",
+          "volume_m3": "Volume",
+          "pool_type": "Traitement",
+          "surface_type": "Revêtement",
+          "disinfection_mode": "Mesure de désinfection utilisée",
+          "electrolyzer_type": "Type d’électrolyseur"
+        }
+      },
+      "entities": {
+        "title": "Entités Home Assistant",
+        "description": "Sélectionne les capteurs existants. La commande de pompe est facultative : utilise un switch/input_boolean pour permettre le pilotage. Un binary_sensor peut être renseigné séparément pour suivre uniquement l’état.",
+        "data": {
+          "temp_entity": "Température eau",
+          "ph_entity": "pH",
+          "orp_entity": "RedOx / ORP",
+          "fc_entity": "Chlore libre",
+          "ta_entity": "Alcalinité",
+          "ch_entity": "Dureté calcium",
+          "cya_entity": "Stabilisant CYA",
+          "salt_entity": "Sel",
+          "pump_switch": "Commande pompe (optionnelle)",
+          "heatpump_entity": "Pompe à chaleur",
+          "weather_entity": "Météo",
+          "forecast_temp_entity": "Température prévue",
+          "pump_state": "État de la pompe (optionnel)",
+          "electrolyzer_switch": "Commande marche / arrêt de l’électrolyseur (optionnelle)",
+          "electrolyzer_output_entity": "Pourcentage de production de l’électrolyseur (optionnel)",
+          "electrolyzer_boost_entity": "Commande Boost de l’électrolyseur (optionnelle)",
+          "electrolyzer_status_entity": "État ou diagnostic de l’électrolyseur (optionnel)"
+        }
+      }
+    },
+    "selector": {
+      "pool_type": {
+        "options": {
+          "chlorine": "Chlore",
+          "saltwater": "Électrolyse au sel",
+          "bromine": "Brome"
+        }
+      },
+      "surface_type": {
+        "options": {
+          "liner": "Liner",
+          "polyester": "Coque polyester",
+          "concrete": "Béton",
+          "tile": "Carrelage",
+          "painted": "Peinture",
+          "other": "Autre"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Réglages Pool Pilot",
+        "data": {
+          "target_ph": "pH cible",
+          "target_fc": "Chlore libre cible",
+          "filtering_mode": "Mode filtration",
+          "auto_start_time": "Heure de début minimale (HH:MM)",
+          "auto_end_time": "Heure de fin maximale (HH:MM)",
+          "filter_coef": "Coefficient filtration",
+          "min_filter_hours": "Filtration minimum",
+          "max_filter_hours": "Filtration maximum",
+          "heat_pump_priority": "Priorité PAC",
+          "free_chlorine_mode": "Source du chlore libre (compatibilité)",
+          "disinfection_mode": "Mesure de désinfection utilisée",
+          "pump_switch": "Commande pompe (switch, optionnelle)",
+          "pump_state": "État pompe (binary_sensor, optionnel)",
+          "electrolyzer_type": "Type d’électrolyseur",
+          "electrolyzer_switch": "Commande électrolyseur",
+          "electrolyzer_output_entity": "Production électrolyseur (%)",
+          "electrolyzer_boost_entity": "Commande Boost",
+          "electrolyzer_status_entity": "État électrolyseur",
+          "filtration_placement_mode": "Placement de la filtration automatique",
+          "filtration_center_hour": "Heure centrale"
+        }
+      }
+    },
+    "selector": {
+      "filtering_mode": {
+        "options": {
+          "off": "Arrêt",
+          "manual": "Manuel",
+          "auto": "Auto intelligent"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "water_temperature": {
+        "name": "Température de l'eau"
+      },
+      "recommended_filter_hours": {
+        "name": "Durée de filtration recommandée"
+      },
+      "weather_factor": {
+        "name": "Facteur météo"
+      },
+      "chemistry_status": {
+        "name": "État chimie"
+      },
+      "bathing_status": {
+        "name": "État baignade"
+      },
+      "action_summary": {
+        "name": "Actions recommandées"
+      },
+      "ph": {
+        "name": "pH"
+      },
+      "orp": {
+        "name": "RedOx"
+      },
+      "free_chlorine": {
+        "name": "Chlore libre"
+      },
+      "product_recommendation": {
+        "name": "Recommandation produit"
+      },
+      "pool_house": {
+        "name": "Pool House"
+      },
+      "alert_status": {
+        "name": "État des alertes"
+      },
+      "auto_filter_remaining": {
+        "name": "Filtration auto restante"
+      },
+      "auto_schedule_status": {
+        "name": "Statut filtration automatique"
+      },
+      "smart_filtration": {
+        "name": "État filtration intelligente"
+      },
+      "strip_test": {
+        "name": "Test bandelette"
+      },
+      "maintenance_journal": {
+        "name": "Carnet d'entretien"
+      },
+      "pool_alerts": {
+        "name": "Alertes Pool Pilot"
+      },
+      "algae_risk": {
+        "name": "Risque d'algues"
+      },
+      "health_score": {
+        "name": "Indice santé piscine"
+      },
+      "auto_filter_remaining_hours": {
+        "name": "Filtration restante"
+      },
+      "auto_schedule_done_hours": {
+        "name": "Filtration effectuée aujourd'hui"
+      },
+      "vigilance": {
+        "name": "Vigilance Pool Pilot"
+      },
+      "raw_measurements": {
+        "name": "Historique mesures"
+      },
+      "estimated_free_chlorine": {
+        "name": "Chlore libre estimé"
+      },
+      "active_chlorine": {
+        "name": "Chlore actif HOCl"
+      },
+      "chlorine_mode_used": {
+        "name": "Mode chlore utilisé"
+      },
+      "lsi": {
+        "name": "LSI"
+      },
+      "phs": {
+        "name": "pHs"
+      },
+      "minf": {
+        "name": "MINF / TDS"
+      },
+      "taylor_status": {
+        "name": "Balance de Taylor"
+      },
+      "electrolyzer": {
+        "name": "Électrolyseur"
+      },
+      "filtration_progress": {
+        "name": "Progression filtration"
+      }
+    },
+    "number": {
+      "target_ph": {
+        "name": "pH cible"
+      },
+      "target_fc": {
+        "name": "Chlore libre cible"
+      },
+      "filter_coef": {
+        "name": "Coefficient de filtration"
+      },
+      "min_filter_hours": {
+        "name": "Filtration minimum"
+      },
+      "max_filter_hours": {
+        "name": "Filtration maximum"
+      },
+      "water_temp_alert_min": {
+        "name": "Seuil eau trop froide"
+      },
+      "water_temp_alert_max": {
+        "name": "Seuil eau trop chaude"
+      },
+      "algae_risk_sensitivity": {
+        "name": "Seuil risque d'algues"
+      },
+      "filtration_center_hour": {
+        "name": "Heure centrale filtration"
+      }
+    },
+    "button": {
+      "confirm_current_action": {
+        "name": "Valider action recommandée"
+      },
+      "start_auto_filter": {
+        "name": "Lancer filtration recommandée"
+      }
+    },
+    "select": {
+      "filtering_mode": {
+        "name": "Mode filtration"
+      },
+      "filtration_placement_mode": {
+        "name": "Placement de la filtration automatique",
+        "state": {
+          "centered": "Centrer autour de l’heure centrale",
+          "window": "Respecter une plage horaire"
+        }
+      }
+    },
+    "switch": {
+      "maintenance_mode": {
+        "name": "Mode Maintenance"
+      }
+    },
+    "time": {
+      "auto_start_time": {
+        "name": "Heure de début minimale"
+      },
+      "auto_end_time": {
+        "name": "Heure de fin maximale"
+      }
+    }
+  }
+}

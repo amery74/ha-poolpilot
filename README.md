@@ -2,161 +2,190 @@
   <img src="images/logo.png" alt="Pool Pilot" width="260">
 </p>
 
-# Pool Pilot
-
-**Pool Pilot** est une intégration Home Assistant pensée pour piloter, suivre et documenter l’entretien d’une piscine au quotidien.
-
-Elle centralise les mesures de l’eau, calcule la filtration recommandée, suit les alertes, mémorise les tests bandelette, gère les produits du Pool House et expose des entités prêtes à être utilisées dans Lovelace.
+<h1 align="center">Pool Pilot</h1>
 
 <p align="center">
-  <img src="docs/screenshots/integration-page.jpg" alt="Pool Pilot dans Home Assistant" width="420">
+  Intégration Home Assistant pour analyser l’eau, calculer la filtration, suivre l’entretien et piloter les équipements d’une piscine.
 </p>
 
-## Points forts
+<p align="center">
+  <a href="https://github.com/amery74/ha-poolpilot/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/amery74/ha-poolpilot"></a>
+  <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/github/license/amery74/ha-poolpilot"></a>
+  <a href="https://github.com/amery74/ha-poolpilot/actions/workflows/validate.yml"><img alt="HACS validation" src="https://img.shields.io/github/actions/workflow/status/amery74/ha-poolpilot/validate.yml?label=HACS"></a>
+  <a href="https://github.com/amery74/ha-poolpilot/actions/workflows/hassfest.yml"><img alt="Hassfest" src="https://img.shields.io/github/actions/workflow/status/amery74/ha-poolpilot/hassfest.yml?label=Hassfest"></a>
+  <a href="https://github.com/amery74/ha-poolpilot/issues"><img alt="Issues" src="https://img.shields.io/github/issues/amery74/ha-poolpilot"></a>
+</p>
 
-- Filtration intelligente avec durée recommandée quotidienne.
-- Mode auto intelligent avec suivi du cycle, heures réalisées et prochaine programmation.
-- Analyse des paramètres d’eau : température, pH, chlore, ORP, TAC, TH, stabilisant, sel.
-- Estimation du chlore libre à partir de l’ORP, du pH et de la température si aucun capteur chlore n’est disponible.
+## Sommaire
+
+- [Présentation](#présentation)
+- [Fonctionnalités](#fonctionnalités)
+- [Compatibilité](#compatibilité)
+- [Installation](#installation-avec-hacs)
+- [Configuration](#configuration)
+- [Filtration intelligente](#filtration-intelligente)
+- [Mode Maintenance](#mode-maintenance)
+- [Dépannage](#dépannage)
+- [Contribution et support](#contribution-et-support)
+
+## Présentation
+
+**Pool Pilot** centralise les données utiles au suivi d’une piscine dans Home Assistant. L’intégration calcule la durée de filtration recommandée, analyse la qualité de l’eau, génère des alertes et recommandations, conserve un carnet d’entretien et expose des entités utilisables dans les tableaux de bord et les automatisations.
+
+Elle peut fonctionner uniquement comme outil de suivi ou piloter les équipements configurés. La pompe, la pompe à chaleur, l’électrolyseur et les autres équipements restent facultatifs.
+
+<p align="center">
+  <img src="docs/screenshots/integration-device-page.jpg" alt="Appareil Pool Pilot dans Home Assistant" width="360">
+</p>
+
+## Fonctionnalités
+
+- Analyse de la température, du pH, de l’ORP ou du chlore libre.
+- Estimation du chlore libre lorsque seul l’ORP est disponible.
+- Filtration intelligente avec durée recommandée et programmation quotidienne.
+- Choix d’une filtration centrée autour d’une heure ou limitée dans une plage horaire.
+- Suivi de la durée réalisée, de la progression et du temps restant.
+- Mode Maintenance suspendant les automatismes Pool Pilot tout en laissant les commandes manuelles disponibles.
+- Gestion simple ou avancée de l’électrolyseur, du pourcentage de production et du Boost facultatif.
+- Prise en charge facultative de la pompe à chaleur.
+- Alertes hiérarchisées, recommandations de traitement et dosages calculés.
 - Balance de Taylor, LSI, pHs, minF et interprétation de l’équilibre de l’eau.
-- Carnet d’entretien et historique des mesures.
-- Test bandelette avec sauvegarde persistante.
-- Pool House : stock produits, seuils, recommandations et suivi des corrections.
-- Notifications Pool Pilot : alertes, stock faible, batterie faible, rappel bandelette, résumé quotidien.
-- Démarrage sécurisé : l’intégration ne bloque pas Home Assistant si la météo ou une entité externe est indisponible.
+- Tests bandelette, carnet d’entretien et récapitulatifs quotidiens persistants.
+- Gestion des stocks et produits du Pool House.
+- Notifications configurables : eau, filtration, stock, batterie, rappel bandelette et résumé quotidien.
+- Historique exploitable dans Home Assistant et dans la carte Pool Pilot Dashboard.
 
-## Captures
+## Captures de l’intégration
 
-| Suivi piscine | Balance de Taylor | Pool House |
-|---|---|---|
-| <img src="docs/screenshots/dashboard-main.jpg" width="260"> | <img src="docs/screenshots/taylor-balance.jpg" width="260"> | <img src="docs/screenshots/pool-house.jpg" width="260"> |
+| Contrôles | Capteurs principaux |
+|---|---|
+| <img src="docs/screenshots/integration-controls.jpg" alt="Contrôles Pool Pilot" width="320"> | <img src="docs/screenshots/integration-sensors-overview.jpg" alt="Capteurs Pool Pilot" width="320"> |
 
-| Test bandelette | Notifications | Entités exposées |
-|---|---|---|
-| <img src="docs/screenshots/strip-form.jpg" width="260"> | <img src="docs/screenshots/notifications.jpg" width="260"> | <img src="docs/screenshots/entities.jpg" width="260"> |
+| Analyse de l’eau | Filtration et recommandations |
+|---|---|
+| <img src="docs/screenshots/integration-sensors-water.jpg" alt="Capteurs d’analyse de l’eau" width="320"> | <img src="docs/screenshots/integration-sensors-filtration.jpg" alt="Capteurs de filtration" width="320"> |
 
-## Installation via HACS
+## Compatibilité
+
+Pool Pilot accepte les entités standards de Home Assistant et ne dépend pas d’une marque unique. La compatibilité a notamment été validée avec **Poolex Aqualyser**. Des capteurs issus de Flipr ou d’autres équipements peuvent également être utilisés dès lors qu’ils exposent les mesures attendues dans Home Assistant.
+
+Mesures prises en charge selon la configuration :
+
+- température de l’eau ;
+- pH ;
+- ORP / RedOx ;
+- chlore libre ;
+- date de dernière mesure ;
+- bouton facultatif de déclenchement d’une mesure ;
+- TAC, TH, stabilisant et autres valeurs saisies par test bandelette.
+
+## Installation avec HACS
+
+### Dépôt personnalisé
+
+Tant que le référencement officiel dans HACS n’est pas validé :
 
 1. Ouvrir **HACS**.
-2. Aller dans **Dépôts personnalisés**.
-3. Ajouter le dépôt :
+2. Aller dans **Intégrations** puis **Dépôts personnalisés**.
+3. Ajouter :
 
 ```text
 https://github.com/amery74/ha-poolpilot
 ```
 
-4. Choisir le type **Intégration**.
-5. Installer **Pool Pilot**.
-6. Redémarrer Home Assistant.
-7. Aller dans **Paramètres → Appareils et services → Ajouter une intégration**.
-8. Rechercher **Pool Pilot**.
+4. Sélectionner la catégorie **Intégration**.
+5. Installer **Pool Pilot** puis redémarrer Home Assistant.
+6. Aller dans **Paramètres → Appareils et services → Ajouter une intégration**.
+7. Rechercher **Pool Pilot**.
+
+### Installation manuelle
+
+Copier le dossier :
+
+```text
+custom_components/pool_pilot
+```
+
+dans :
+
+```text
+/config/custom_components/
+```
+
+puis redémarrer Home Assistant.
 
 ## Configuration
 
-Lors de l’ajout de l’intégration, Pool Pilot demande les principales informations de la piscine :
+L’assistant demande uniquement les informations nécessaires à votre installation :
 
-- nom de la piscine ;
-- type de traitement ;
-- volume en m³ ;
-- type de revêtement ;
-- capteur température ;
-- pH, ORP, chlore libre ou chlore estimé ;
-- pompe de filtration ;
-- météo ou capteur de température prévue ;
-- pompe à chaleur ou couverture si disponible.
+- nom et volume du bassin ;
+- type de traitement et revêtement ;
+- capteurs de température, pH, ORP ou chlore libre ;
+- météo ou température prévue ;
+- commande et/ou état de la pompe, tous deux facultatifs ;
+- pompe à chaleur et électrolyseur facultatifs ;
+- paramètres de filtration et seuils de qualité de l’eau ;
+- préférences de notifications.
 
-Les options avancées permettent d’ajuster :
-
-- pH cible ;
-- chlore libre cible ;
-- durée minimale et maximale de filtration ;
-- coefficient de filtration ;
-- mode de placement de la filtration automatique ;
-- heure centrale de filtration ;
-- heure de début minimale et heure de fin maximale ;
-- seuils de température ;
-- sensibilité au risque d’algues ;
-- notifications.
-
-## Entités principales
-
-Pool Pilot expose notamment : état de santé de l’eau, alertes, balance de Taylor, carnet d’entretien, chlore actif / HOCl, chlore libre estimé, durée de filtration recommandée, état de baignade, état filtration intelligente, facteur météo, filtration effectuée aujourd’hui, Pool House et test bandelette.
+Il n’est pas nécessaire de créer de fausses entités pour terminer la configuration. Une fonction absente de l’installation peut simplement rester non configurée.
 
 ## Filtration intelligente
 
-Le mode auto intelligent calcule chaque jour une durée de filtration à partir de la température de l’eau, de la météo prévue et des limites minimum/maximum.
+La durée quotidienne est calculée à partir de la température de l’eau, des conditions météo et des limites définies par l’utilisateur. La programmation peut être :
 
-La période peut être centrée autour d’une heure choisie, ou contrainte entre une heure de début minimale et une heure de fin maximale. Ces trois réglages sont exposés sous forme d’entités `select`, `number` et `time`, afin d’être pilotables depuis le Dashboard ou une automatisation Home Assistant.
+- **centrée** autour d’une heure choisie ;
+- **encadrée** entre une heure minimale de début et une heure maximale de fin.
 
-Le cycle expose dans ses attributs : état, durée cible, durée déjà effectuée, limite de fin, prochaine programmation, fenêtres prévues et détail du calcul.
+L’intégration expose notamment l’état du cycle, la durée cible, la durée réalisée, la progression, le temps restant et la prochaine programmation.
 
-## Tests bandelette
+## Mode Maintenance
 
-Les tests bandelette sont mémorisés dans l’intégration et restaurés après redémarrage.
+Le mode Maintenance suspend les décisions et automatismes de Pool Pilot afin d’éviter tout redémarrage automatique pendant une intervention. Les mesures et historiques continuent d’être enregistrés et les équipements restent commandables manuellement depuis Home Assistant.
 
-<p align="center">
-  <img src="docs/screenshots/strip-result.jpg" alt="Résultat test bandelette" width="420">
-</p>
+## Carte recommandée
 
-Les valeurs peuvent alimenter les calculs d’équilibre de l’eau et compléter les capteurs physiques.
-
-## Notifications
-
-Pool Pilot peut envoyer des alertes eau, recommandations produits, suivis de filtration automatique, alertes stock faible, alertes batterie faible, rappels test bandelette et résumés quotidiens.
-
-Les préférences sont sauvegardées côté intégration et restent conservées après redémarrage.
-
-## Carte Lovelace recommandée
-
-Pour une interface complète, installez aussi la carte :
+Pour profiter de l’interface complète, installer également :
 
 ```text
 https://github.com/amery74/pool-pilot-dashboard
 ```
 
-Type HACS : **Tableau de bord / Plugin**.
+Catégorie HACS : **Tableau de bord / Plugin**.
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-home-overview.jpg" alt="Pool Pilot Dashboard" width="300">
+  <img src="docs/screenshots/dashboard-expert-filtration.jpg" alt="Mode Expert Pool Pilot" width="300">
+</p>
 
 ## Dépannage
 
-Après une mise à jour : redémarrer Home Assistant, vider le cache de l’application si l’ancienne carte reste affichée, puis vérifier les logs avec :
+Après une mise à jour :
+
+1. redémarrer Home Assistant ;
+2. vérifier **Paramètres → Système → Journaux** ;
+3. recharger complètement l’application ou le navigateur si la carte conserve une ancienne version.
+
+Commande Home Assistant OS utile :
 
 ```bash
 ha core logs -n 100
 ```
 
-Les warnings Home Assistant indiquant qu’une intégration personnalisée n’est pas testée sont normaux pour une intégration installée via HACS.
+Pour signaler un problème, ouvrir une issue en joignant la version de Home Assistant, la version de Pool Pilot, les entités utilisées et les logs utiles.
 
-## Versions recommandées
+## Versions
 
-- Pool Pilot : **v1.2.3-beta** ou plus récent.
-- Pool Pilot Dashboard : **v1.2.3-beta** ou plus récent.
-- Home Assistant : version récente avec HACS.
+- Intégration Pool Pilot : **v1.2.3**
+- Pool Pilot Dashboard recommandé : **v1.2.3** ou plus récent
+- Home Assistant minimal déclaré : **2025.1.0**
+
+## Contribution et support
+
+- Problèmes et demandes : [GitHub Issues](https://github.com/amery74/ha-poolpilot/issues)
+- Consignes de contribution : [CONTRIBUTING.md](CONTRIBUTING.md)
+- Support : [SUPPORT.md](SUPPORT.md)
+- Sécurité : [SECURITY.md](SECURITY.md)
 
 ## Licence
 
-Projet personnel Home Assistant pour le suivi et l’automatisation d’une piscine résidentielle.
-
-
-## Mesures et système de désinfection
-
-Dans les options de l’intégration, choisissez le système correspondant à votre installation :
-
-- **Chlore libre** : un capteur de chlore libre est disponible.
-- **ORP / RedOx** : l’installation expose l’ORP mais pas de chlore libre.
-- **ORP + chlore libre** : les deux mesures sont disponibles.
-
-Le bouton **Lancer une mesure** est facultatif : sélectionnez-le uniquement si votre appareil expose une entité permettant de déclencher une analyse.  
-Le champ **Dernière mesure** est également facultatif : il affiche la date et l’heure fournies par le capteur de l’utilisateur.
-
-
-
-## Configuration de la pompe
-
-La pompe n’est plus obligatoire pour utiliser Pool Pilot.
-
-- **Commande pompe (optionnelle)** : sélectionnez un `switch` ou un `input_boolean` uniquement si Pool Pilot doit pouvoir démarrer et arrêter la pompe.
-- **État de la pompe (optionnel)** : sélectionnez un `binary_sensor`, un `switch` ou un `input_boolean` si vous souhaitez seulement afficher et suivre son état.
-- Si aucun de ces champs n’est renseigné, Pool Pilot continue de calculer les recommandations de filtration, mais ne pilote pas la pompe.
-
-Ne créez pas de faux interrupteur uniquement pour terminer l’installation.
-
+Pool Pilot est distribué sous la licence indiquée dans le fichier [LICENSE](LICENSE).

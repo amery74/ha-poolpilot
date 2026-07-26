@@ -1,114 +1,80 @@
-## 1.2.3-beta
-
-- Correctifs ciblés : Maintenance, jauge de désinfection et progression de filtration.
-- La gestion du volet est retirée de l’intégration et reste exclusivement configurée dans la carte.
-- Aucun changement de la structure générale de l’interface.
-
 # Changelog
 
-## 1.2.2-beta
-- Mode Maintenance avec suspension des automatismes et maintien des mesures.
-- Commande facultative du volet (ouvrir, arrêter, fermer, état et position).
-- Progression quotidienne de filtration : réalisé, prévu, pourcentage et temps restant.
-- Jauge ORP/chlore harmonisée avec la jauge pH.
-- Boost électrolyseur utilisable en mode simple ou avancé.
-- Enregistrement automatique des alertes et récapitulatifs dans le carnet.
-- Amélioration du bouton de mesure, du logo central et de la stabilité du défilement.
+All notable changes to Pool Pilot are documented in this file.
 
-# Changelog
+The project follows semantic versioning where possible.
 
-## v1.2.1-beta
+## [Unreleased]
 
-### Added
-- Exposed the automatic-filtration placement mode as a controllable `select` entity.
-- Exposed the minimum start time and maximum end time as controllable `time` entities.
-- Added French entity names and translated placement states for the new controls.
+### Planned
 
-### Fixed
-- The Dashboard can now change centered/window placement and the authorized filtration window without reopening the integration options.
-- Existing saved values remain the source of truth and are preserved during the update.
+- Continue stability testing and community feedback.
 
-
-## v1.2.0-beta.1
+## [1.2.3] - 2026-07-26
 
 ### Added
-- Explicit user choice between ORP/RedOx and free-chlorine measurement.
-- Simple or advanced electrolyzer configuration.
-- Optional electrolyzer production, Boost and status entities.
-- Choice between centered automatic filtration and a bounded daily window.
-- Detailed filtration attributes showing requested, scheduled and constrained duration.
+
+- Maintenance Mode exposed in Home Assistant and accessible from Pool Pilot Dashboard.
+- Daily filtration progress, completed duration, target duration and remaining time.
+- Automatic maintenance log entries and daily summaries.
+
+### Changed
+
+- Improved chlorine/ORP recommendation handling and dosage exposure.
+- Simplified optional electrolyzer Boost configuration.
+- Pool-cover control remains a dashboard-only feature and is not part of the integration.
 
 ### Fixed
-- Configuration validation now requires the entity matching the selected measurement mode on new installations.
-- Automatic scheduling never exceeds the user-defined filtration window.
-- Existing 1.1.x installations remain compatible through defaults and option fallbacks.
 
+- Prevented automatic filtration restarts while Maintenance Mode is active.
+- Fixed missing treatment text when a recommendation existed without a separate alert.
+- Improved filtration progress consistency.
 
-## v1.1.1
-
-### Fixed
-- The filtration pump is no longer mandatory during setup.
-- A read-only `binary_sensor` can now be selected separately as the pump state.
-- Pool Pilot only sends commands to controllable `switch` or `input_boolean` entities.
-- Setup labels and documentation now distinguish pump command from pump state.
-- Version metadata and release documentation were updated.
-
-
-## v1.1.0-beta.1
-
-### Fixed
-- Corrected persistence of options such as chlorine mode and minimum filtration hours.
-- Existing options are no longer replaced by an empty options dictionary after saving.
+## [1.2.2-beta]
 
 ### Added
-- New disinfection-system selector: chlorine, ORP/RedOx, or hybrid.
-- ORP-only installations can explicitly use the ORP-based chlorine estimate.
-- Documentation for the optional “Start measurement” and “Last measurement” entities.
-- More transparent filtration detail attributes.
 
+- Initial Maintenance Mode implementation.
+- Filtration progress sensors and maintenance journal enhancements.
+- Improved alerts and daily maintenance summaries.
 
-## v1.0.1
+## [1.2.1-beta]
+
+### Added
+
+- Controllable automatic-filtration placement mode.
+- Configurable minimum start and maximum end times.
 
 ### Fixed
-- Harmonized filtering mode values exposed to Home Assistant: `off`, `manual`, and `auto`.
-- Migrated the legacy internal value `auto_intelligent` to `auto` for Home Assistant-facing options.
-- Fixed the filtering mode select that could show `unknown` on some installations.
-- Removed the duplicated `auto_schedule_detail` attribute and kept the single `detail` attribute.
-- Updated version metadata for the v1.0.1 maintenance release.
 
+- Dashboard-controlled filtration scheduling without reopening integration options.
 
-## v1.0.0
+## [1.2.0-beta.1]
 
-### Stable release
-- First stable release of the Pool Pilot Home Assistant integration.
-- Stable startup behavior with non-blocking initialization.
-- Persistent Pool House products and maintenance data.
-- Persistent strip test history.
-- Notification preferences saved safely.
-- Compatible with Home Assistant 2026.6+.
+### Added
 
-### Features
-- Smart filtration recommendations.
-- Automatic filtration scheduling.
-- Water chemistry monitoring.
-- Pool House product inventory.
-- Product recommendation engine.
-- Strip test tracking.
-- Persistent notifications and mobile notify services.
-- Daily summary and reminder options.
-- Diagnostic sensors and attributes for Lovelace cards.
+- Choice between ORP and free-chlorine measurement.
+- Simple and advanced electrolyzer configuration.
+- Centered or bounded-window automatic filtration.
+- Detailed requested, scheduled and constrained filtration attributes.
 
-### Stability
-- Fixed startup blocking caused by weather, refresh, notification, or automation tasks.
-- Fixed notification service coordinator lookup.
-- Fixed Home Assistant 2026.6 runtime compatibility.
-- Made weather forecast refresh safe when the weather entity is unavailable.
+## [1.1.1]
 
-## v0.8.30
-- Introduced minimal boot mode.
-- Coordinator is registered before setup work begins.
-- Deferred weather refresh, timers, and auto-schedule startup tasks.
+### Fixed
 
-## v0.8.28
-- Fixed notification preference saving on Home Assistant 2026.6.
-- Protected notification services from coordinator lookup errors.
+- Filtration pump command became optional.
+- Separate read-only pump-state entity support.
+- Safer validation of controllable pump entities.
+
+## [1.0.1]
+
+### Fixed
+
+- Stability and configuration corrections after the first release.
+
+## [1.0.0]
+
+### Added
+
+- First stable Pool Pilot integration release.
+- Water analysis, filtration recommendations, alerts, treatment advice, Pool House and maintenance log.
