@@ -77,8 +77,8 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="user", data_schema=vol.Schema({
             vol.Required(CONF_POOL_NAME, default="Piscine"): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_VOLUME_M3, default=50.0): NumberSelector(NumberSelectorConfig(min=1, max=500, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="m³")),
-            vol.Required(CONF_POOL_TYPE, default=POOL_TYPE_CHLORINE): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
-            vol.Required(CONF_SURFACE_TYPE, default="liner"): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_POOL_TYPE, default=POOL_TYPE_CHLORINE): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN, translation_key="pool_type")),
+            vol.Required(CONF_SURFACE_TYPE, default="liner"): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN, translation_key="surface_type")),
             vol.Required(CONF_DISINFECTION_MODE, default=DEFAULT_DISINFECTION_MODE): SelectSelector(SelectSelectorConfig(options=DISINFECTION_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_ELECTROLYZER_TYPE, default=DEFAULT_ELECTROLYZER_TYPE): SelectSelector(SelectSelectorConfig(options=ELECTROLYZER_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
         }))
@@ -199,8 +199,8 @@ class PoolPilotOptionsFlow(OptionsFlow):
         schema = {
             vol.Required(CONF_POOL_NAME, default=self._current(CONF_POOL_NAME, "Piscine")): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_VOLUME_M3, default=self._current(CONF_VOLUME_M3, 50.0)): NumberSelector(NumberSelectorConfig(min=1, max=500, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="m³")),
-            vol.Required(CONF_POOL_TYPE, default=self._current(CONF_POOL_TYPE, POOL_TYPE_CHLORINE)): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
-            vol.Required(CONF_SURFACE_TYPE, default=self._current(CONF_SURFACE_TYPE, "liner")): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_POOL_TYPE, default=self._current(CONF_POOL_TYPE, POOL_TYPE_CHLORINE)): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN, translation_key="pool_type")),
+            vol.Required(CONF_SURFACE_TYPE, default=self._current(CONF_SURFACE_TYPE, "liner")): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN, translation_key="surface_type")),
             vol.Required(CONF_DISINFECTION_MODE, default=self._current(CONF_DISINFECTION_MODE, DEFAULT_DISINFECTION_MODE)): SelectSelector(SelectSelectorConfig(options=DISINFECTION_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_ELECTROLYZER_TYPE, default=self._current(CONF_ELECTROLYZER_TYPE, DEFAULT_ELECTROLYZER_TYPE)): SelectSelector(SelectSelectorConfig(options=ELECTROLYZER_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             (vol.Required(CONF_TEMP_ENTITY, default=self._current(CONF_TEMP_ENTITY)) if self._current(CONF_TEMP_ENTITY, None) else vol.Required(CONF_TEMP_ENTITY)): sensor,
@@ -217,7 +217,7 @@ class PoolPilotOptionsFlow(OptionsFlow):
             self._optional_entity(CONF_ELECTROLYZER_STATUS_ENTITY): any_state,
             vol.Required(CONF_TARGET_PH, default=self._current(CONF_TARGET_PH, DEFAULT_TARGET_PH)): NumberSelector(NumberSelectorConfig(min=6.8, max=8.0, step=0.1, mode=NumberSelectorMode.SLIDER)),
             vol.Required(CONF_TARGET_FC, default=self._current(CONF_TARGET_FC, DEFAULT_TARGET_FC)): NumberSelector(NumberSelectorConfig(min=0.5, max=10, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="ppm")),
-            vol.Required(CONF_FILTERING_MODE, default=self._current(CONF_FILTERING_MODE, "auto")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_FILTERING_MODE, default=self._current(CONF_FILTERING_MODE, "auto")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN, translation_key="filtering_mode")),
             vol.Required(CONF_FILTRATION_PLACEMENT_MODE, default=self._current(CONF_FILTRATION_PLACEMENT_MODE, DEFAULT_FILTRATION_PLACEMENT_MODE)): SelectSelector(SelectSelectorConfig(options=FILTRATION_PLACEMENT_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_FILTRATION_CENTER_HOUR, default=self._current(CONF_FILTRATION_CENTER_HOUR, DEFAULT_FILTRATION_CENTER_HOUR)): NumberSelector(NumberSelectorConfig(min=0, max=23.5, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="h")),
             vol.Required(CONF_AUTO_START_TIME, default=self._current(CONF_AUTO_START_TIME, DEFAULT_AUTO_START_TIME)): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),

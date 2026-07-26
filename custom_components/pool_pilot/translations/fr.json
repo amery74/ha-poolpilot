@@ -36,25 +36,6 @@
           "electrolyzer_status_entity": "État ou diagnostic de l’électrolyseur (optionnel)"
         }
       }
-    },
-    "selector": {
-      "pool_type": {
-        "options": {
-          "chlorine": "Chlore",
-          "saltwater": "Électrolyse au sel",
-          "bromine": "Brome"
-        }
-      },
-      "surface_type": {
-        "options": {
-          "liner": "Liner",
-          "polyester": "Coque polyester",
-          "concrete": "Béton",
-          "tile": "Carrelage",
-          "painted": "Peinture",
-          "other": "Autre"
-        }
-      }
     }
   },
   "options": {
@@ -84,14 +65,31 @@
           "filtration_center_hour": "Heure centrale"
         }
       }
+    }
+  },
+  "selector": {
+    "pool_type": {
+      "options": {
+        "chlorine": "Chlore",
+        "saltwater": "Électrolyse au sel",
+        "bromine": "Brome"
+      }
     },
-    "selector": {
-      "filtering_mode": {
-        "options": {
-          "off": "Arrêt",
-          "manual": "Manuel",
-          "auto": "Auto intelligent"
-        }
+    "surface_type": {
+      "options": {
+        "liner": "Liner",
+        "polyester": "Coque polyester",
+        "concrete": "Béton",
+        "tile": "Carrelage",
+        "painted": "Peinture",
+        "other": "Autre"
+      }
+    },
+    "filtering_mode": {
+      "options": {
+        "off": "Arrêt",
+        "manual": "Manuel",
+        "auto": "Auto intelligent"
       }
     }
   },
