@@ -41,6 +41,25 @@ jobs:
 
           Le statut de cette issue sera mis à jour au fur et à mesure de son traitement."
 
+      - name: "Nettoyer les anciens statuts"
+        if: "${{ startsWith(github.event.label.name, 'status: ') }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          NEW_STATUS: ${{ github.event.label.name }}
+        run: |
+          for LABEL in \
+            "status: à analyser" \
+            "status: confirmé" \
+            "status: correction en cours" \
+            "status: corrigé"
+          do
+            if [ "$LABEL" != "$NEW_STATUS" ]; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label "$LABEL" 2>/dev/null || true
+            fi
+          done
+
       - name: "Statut à analyser"
         if: "${{ github.event.label.name == 'status: à analyser' }}"
         env:
