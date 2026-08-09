@@ -1,0 +1,45 @@
+name: "🔌 Compatibilité matériel"
+description: "Proposer un équipement à rendre compatible avec Pool Pilot"
+title: "[COMPATIBILITÉ] "
+labels: ["compatibility"]
+body:
+  - type: input
+    id: brand
+    attributes:
+      label: "Marque"
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: "Modèle"
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: "Type d'équipement"
+      options:
+        - "Pompe de filtration"
+        - "Pompe à vitesse variable"
+        - "PAC"
+        - "Électrolyseur"
+        - "Pompe doseuse"
+        - "Analyseur / sondes"
+        - "Volet"
+        - "Éclairage"
+        - "Autre"
+    validations:
+      required: true
+  - type: textarea
+    id: entities
+    attributes:
+      label: "Entités disponibles dans Home Assistant"
+  - type: textarea
+    id: integration
+    attributes:
+      label: "Intégration Home Assistant utilisée"
+  - type: textarea
+    id: details
+    attributes:
+      label: "Informations complémentaires"

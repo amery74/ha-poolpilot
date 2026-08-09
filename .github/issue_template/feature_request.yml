@@ -1,0 +1,39 @@
+name: "💡 Proposer une amélioration"
+description: "Proposer une nouvelle fonctionnalité ou une évolution"
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: "Quel besoin souhaitez-vous résoudre ?"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Fonctionnalité proposée"
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: "Exemple d'utilisation"
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Partie concernée"
+      options:
+        - "Filtration"
+        - "Traitement / désinfection"
+        - "pH"
+        - "PAC / chauffage"
+        - "Volet"
+        - "Maintenance"
+        - "Carnet d'entretien"
+        - "Notifications"
+        - "Interface / carte"
+        - "Compatibilité matériel"
+        - "Autre"
+    validations:
+      required: true

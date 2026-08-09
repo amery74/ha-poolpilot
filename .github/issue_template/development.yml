@@ -1,0 +1,47 @@
+name: "🛠️ Suivi de développement"
+description: "Créer une issue interne de suivi de développement"
+title: "[DEV] "
+labels: ["development"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: "Version cible"
+      placeholder: "Ex. v1.2.4-beta"
+    validations:
+      required: true
+  - type: input
+    id: feature
+    attributes:
+      label: "Fonctionnalité / chantier"
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: "Objectif"
+    validations:
+      required: true
+  - type: textarea
+    id: specs
+    attributes:
+      label: "Spécifications"
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: "Travaux à réaliser"
+      placeholder: |
+        - [ ] Intégration
+        - [ ] Carte
+        - [ ] Tests
+        - [ ] Documentation
+  - type: textarea
+    id: validation
+    attributes:
+      label: "Critères de validation"
+  - type: textarea
+    id: notes
+    attributes:
+      label: "Notes / retours de tests"

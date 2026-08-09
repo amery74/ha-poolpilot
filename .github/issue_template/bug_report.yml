@@ -1,0 +1,63 @@
+name: "🐛 Signaler un bug"
+description: "Signaler un problème rencontré avec Pool Pilot"
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: "Version de Pool Pilot"
+      placeholder: "Ex. v1.2.3"
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: "Version de Home Assistant"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Composant concerné"
+      options:
+        - "Intégration Pool Pilot"
+        - "Carte Pool Pilot"
+        - "Intégration et carte"
+        - "Je ne sais pas"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description du problème"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: "Étapes pour reproduire"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Comportement attendu"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs"
+      render: shell
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "Captures d'écran"
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Vérifications"
+      options:
+        - label: "J'ai vérifié qu'aucune issue similaire n'existe déjà."
+          required: true
