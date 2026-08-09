@@ -2,7 +2,8 @@ name: "Suivi automatique des bugs"
 
 on:
   issues:
-    types: [labeled]
+    types:
+      - labeled
 
 permissions:
   contents: read
@@ -11,7 +12,7 @@ permissions:
 jobs:
   bug-triage:
     runs-on: ubuntu-latest
-    if: >
+    if: >-
       github.event.label.name == 'bug' ||
       github.event.label.name == 'status: à analyser' ||
       github.event.label.name == 'status: confirmé' ||
@@ -20,67 +21,69 @@ jobs:
 
     steps:
       - name: "Nouveau bug"
-        if: github.event.label.name == 'bug'
+        if: "${{ github.event.label.name == 'bug' }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           CURRENT_LABELS="$(gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name')"
+
           if ! echo "$CURRENT_LABELS" | grep -qxE 'status: (à analyser|confirmé|correction en cours|corrigé)'; then
             gh issue edit "$ISSUE_NUMBER" --add-label "status: à analyser"
           fi
-          gh issue comment "$ISSUE_NUMBER" --body "Merci pour ce signalement.
+
+          gh issue comment "$ISSUE_NUMBER" --body "👋 Merci pour ce signalement.
 
           Le bug a bien été enregistré et va être analysé.
 
-          **Statut actuel :** À analyser
+          **Statut actuel :** 🔎 À analyser
 
           Le statut de cette issue sera mis à jour au fur et à mesure de son traitement."
 
-      - name: "À analyser"
-        if: github.event.label.name == 'status: à analyser'
+      - name: "Statut à analyser"
+        if: "${{ github.event.label.name == 'status: à analyser' }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "**Statut mis à jour : À analyser**
+          gh issue comment "$ISSUE_NUMBER" --body "🔎 **Statut mis à jour : À analyser**
 
           Le signalement est en attente d'analyse afin de confirmer le problème et d'en identifier la cause."
 
-      - name: "Confirmé"
-        if: github.event.label.name == 'status: confirmé'
+      - name: "Statut confirmé"
+        if: "${{ github.event.label.name == 'status: confirmé' }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "**Statut mis à jour : Bug confirmé**
+          gh issue comment "$ISSUE_NUMBER" --body "✅ **Statut mis à jour : Bug confirmé**
 
           Le problème a été reproduit ou confirmé. Il peut maintenant entrer dans le cycle de correction."
 
-      - name: "Correction en cours"
-        if: github.event.label.name == 'status: correction en cours'
+      - name: "Statut correction en cours"
+        if: "${{ github.event.label.name == 'status: correction en cours' }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "**Statut mis à jour : Correction en cours**
+          gh issue comment "$ISSUE_NUMBER" --body "🛠️ **Statut mis à jour : Correction en cours**
 
           Une correction est actuellement en préparation.
 
           Lorsqu'une Pull Request est créée pour ce bug, elle peut être liée à cette issue avec \`Fixes #${ISSUE_NUMBER}\`."
 
-      - name: "Corrigé"
-        if: github.event.label.name == 'status: corrigé'
+      - name: "Statut corrigé"
+        if: "${{ github.event.label.name == 'status: corrigé' }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --body "**Statut mis à jour : Corrigé**
+          gh issue comment "$ISSUE_NUMBER" --body "🎉 **Statut mis à jour : Corrigé**
 
           Une correction a été réalisée.
 
