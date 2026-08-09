@@ -1267,21 +1267,25 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             elif water_temp >= 26:
                 score += 10; reasons.append("eau tiède")
 
-        target_fc = float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC))
-        if fc is not None:
-            if fc < max(0.5, target_fc * 0.4):
-                score += 35; reasons.append("chlore libre très faible")
-            elif fc < max(0.8, target_fc * 0.7):
-                score += 25; reasons.append("chlore libre faible")
-        # If no free chlorine is configured, rely more on ORP.
-        elif orp is None:
-            score += 8; reasons.append("désinfection non mesurée")
-
-        if orp is not None:
-            if orp < 600:
-                score += 35; reasons.append("RedOx très faible")
-            elif orp < 650:
-                score += 22; reasons.append("RedOx faible")
+        disinfection_mode = self._disinfection_mode()
+        if disinfection_mode == MEASUREMENT_MODE_ORP:
+            target_orp = float(self.option(CONF_TARGET_ORP, DEFAULT_TARGET_ORP))
+            if orp is not None:
+                if orp < target_orp - 100:
+                    score += 35; reasons.append("RedOx très faible")
+                elif orp < target_orp - 50:
+                    score += 22; reasons.append("RedOx faible")
+            else:
+                score += 8; reasons.append("désinfection non mesurée")
+        else:
+            target_fc = float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC))
+            if fc is not None:
+                if fc < max(0.5, target_fc * 0.4):
+                    score += 35; reasons.append("chlore libre très faible")
+                elif fc < max(0.8, target_fc * 0.7):
+                    score += 25; reasons.append("chlore libre faible")
+            elif orp is None:
+                score += 8; reasons.append("désinfection non mesurée")
 
         if ph is not None:
             if ph < 6.8 or ph > 8.0:
@@ -1343,17 +1347,20 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             elif abs(ph - target) >= 0.25:
                 add("ph_drift", "pH en dérive", "Le pH s’éloigne progressivement de la valeur cible.", round(ph,2), 8, "mdi:ph")
 
-        if fc is not None:
+        disinfection_mode = self._disinfection_mode()
+        if disinfection_mode == MEASUREMENT_MODE_ORP:
+            target_orp = float(self.option(CONF_TARGET_ORP, DEFAULT_TARGET_ORP))
+            if orp is not None:
+                if orp < target_orp - 50:
+                    add("orp_watch", "RedOx à surveiller", "Le RedOx est nettement inférieur à la cible configurée.", f"{round(orp)} mV", 18, "mdi:chart-bell-curve")
+                elif orp < target_orp:
+                    add("orp_margin", "RedOx sous la cible", "Le RedOx est légèrement inférieur à la cible configurée.", f"{round(orp)} mV", 8, "mdi:chart-bell-curve")
+        elif fc is not None:
             target_fc = float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC))
             if fc < max(0.8, target_fc * 0.75):
                 add("chlorine_near_low", "Chlore proche de la limite basse", "Le chlore est encore utilisable mais la marge de sécurité diminue.", f"{round(fc,2)} ppm", 18, "mdi:water-plus")
             elif fc < target_fc:
                 add("chlorine_below_target", "Chlore sous la cible", "Le chlore est légèrement inférieur à la cible configurée.", f"{round(fc,2)} ppm", 8, "mdi:water-plus")
-        elif orp is not None:
-            if orp < 680:
-                add("orp_watch", "RedOx à surveiller", "Le RedOx n’est pas critique, mais il est proche d’une zone moins confortable.", f"{round(orp)} mV", 14, "mdi:chart-bell-curve")
-            elif orp < 720:
-                add("orp_margin", "Marge RedOx limitée", "La désinfection semble correcte mais la marge n’est pas très élevée.", f"{round(orp)} mV", 6, "mdi:chart-bell-curve")
 
         if algae_score >= 45:
             add("algae_risk_watch", "Risque d’algues en hausse", "Le score algues reste sous le seuil d’alerte mais progresse.", f"{round(algae_score,1)} %", 20, "mdi:leaf")
@@ -1575,15 +1582,18 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 alerts.append("pH haut: correction pH- recommandée"); status = "warning"
             elif ph < target_ph - 0.25:
                 alerts.append("pH bas: correction pH+ recommandée"); status = "warning"
-        if fc is not None:
+        disinfection_mode = self._disinfection_mode()
+        if disinfection_mode == MEASUREMENT_MODE_ORP:
+            if orp is not None:
+                target_orp = float(self.option(CONF_TARGET_ORP, DEFAULT_TARGET_ORP))
+                if orp < target_orp - 50:
+                    alerts.append(f"RedOx bas: {orp:.0f} mV, cible {target_orp:.0f} mV"); status = "warning"
+                elif orp > target_orp + 150:
+                    alerts.append(f"RedOx élevé: {orp:.0f} mV, cible {target_orp:.0f} mV"); status = "warning"
+        elif fc is not None:
             target_fc = float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC))
             if fc < target_fc * 0.75:
                 alerts.append("Chlore libre bas: ajout de désinfectant recommandé"); status = "warning"
-        elif orp is not None:
-            if orp < 650:
-                alerts.append("RedOx bas: désinfection à vérifier"); status = "warning"
-            elif orp > 850:
-                alerts.append("RedOx élevé: surchloration possible"); status = "warning"
         return status, alerts
 
     def _fmt_quantity(self, qty: float, unit: str) -> str:
@@ -1619,6 +1629,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         recs: list[ProductRecommendation] = []
         target_ph = float(self.option(CONF_TARGET_PH, DEFAULT_TARGET_PH))
         target_fc = float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC))
+        target_orp = float(self.option(CONF_TARGET_ORP, DEFAULT_TARGET_ORP))
+        disinfection_mode = self._disinfection_mode()
         if ph is not None and ph > target_ph + 0.25:
             product = self._best_product("ph_minus")
             if product:
@@ -1631,18 +1643,19 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 steps = abs(target_ph - ph) / (product.effect_delta or 0.1)
                 qty = self._dose_for_product(product, steps)
                 recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"pH actuel {ph:.2f}, cible {target_ph:.2f}.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
-        if fc is not None and fc < target_fc * 0.75:
+        if disinfection_mode == MEASUREMENT_MODE_ORP:
+            if orp is not None and orp < target_orp - 50:
+                product = self._best_product("chlorine_slow") or self._best_product("chlorine_liquid") or self._best_product("bromine") or self._best_product("active_oxygen")
+                if product:
+                    qty = self._dose_for_product(product, 1.0)
+                    recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"RedOx {orp:.0f} mV, cible {target_orp:.0f} mV : désinfection à renforcer.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
+        elif fc is not None and fc < target_fc * 0.75:
             product = self._best_product("chlorine_slow") or self._best_product("chlorine_liquid") or self._best_product("bromine") or self._best_product("active_oxygen")
             if product:
                 delta = max(target_fc - fc, 0.1)
                 steps = delta / (product.effect_delta or 1.0)
                 qty = self._dose_for_product(product, steps)
                 recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"Chlore libre {fc:.2f} ppm, cible {target_fc:.2f} ppm.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
-        elif fc is None and orp is not None and orp < 650:
-            product = self._best_product("chlorine_slow") or self._best_product("chlorine_liquid") or self._best_product("bromine") or self._best_product("active_oxygen")
-            if product:
-                qty = self._dose_for_product(product, 1.0)
-                recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"RedOx bas ({orp:.0f} mV), désinfection à renforcer.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
         # En cas de risque d'algues élevé, privilégier un chlore choc s'il est configuré.
         try:
             current_algae_score = float(algae_score or 0)

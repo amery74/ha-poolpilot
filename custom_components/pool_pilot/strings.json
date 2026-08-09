@@ -36,6 +36,25 @@
           "electrolyzer_status_entity": "État ou diagnostic de l’électrolyseur (optionnel)"
         }
       }
+    },
+    "selector": {
+      "pool_type": {
+        "options": {
+          "chlorine": "Chlore",
+          "saltwater": "Électrolyse au sel",
+          "bromine": "Brome"
+        }
+      },
+      "surface_type": {
+        "options": {
+          "liner": "Liner",
+          "polyester": "Coque polyester",
+          "concrete": "Béton",
+          "tile": "Carrelage",
+          "painted": "Peinture",
+          "other": "Autre"
+        }
+      }
     }
   },
   "options": {
@@ -45,6 +64,7 @@
         "data": {
           "target_ph": "pH cible",
           "target_fc": "Chlore libre cible",
+          "target_orp": "RedOx cible",
           "filtering_mode": "Mode filtration",
           "auto_start_time": "Heure de début minimale (HH:MM)",
           "auto_end_time": "Heure de fin maximale (HH:MM)",
@@ -65,31 +85,14 @@
           "filtration_center_hour": "Heure centrale"
         }
       }
-    }
-  },
-  "selector": {
-    "pool_type": {
-      "options": {
-        "chlorine": "Chlore",
-        "saltwater": "Électrolyse au sel",
-        "bromine": "Brome"
-      }
     },
-    "surface_type": {
-      "options": {
-        "liner": "Liner",
-        "polyester": "Coque polyester",
-        "concrete": "Béton",
-        "tile": "Carrelage",
-        "painted": "Peinture",
-        "other": "Autre"
-      }
-    },
-    "filtering_mode": {
-      "options": {
-        "off": "Arrêt",
-        "manual": "Manuel",
-        "auto": "Auto intelligent"
+    "selector": {
+      "filtering_mode": {
+        "options": {
+          "off": "Arrêt",
+          "manual": "Manuel",
+          "auto": "Auto intelligent"
+        }
       }
     }
   },
@@ -201,6 +204,9 @@
       },
       "target_fc": {
         "name": "Chlore libre cible"
+      },
+      "target_orp": {
+        "name": "RedOx cible"
       },
       "filter_coef": {
         "name": "Coefficient de filtration"

@@ -2,15 +2,15 @@
   "domain": "pool_pilot",
   "name": "Pool Pilot",
   "codeowners": [
-    "@amery74"
+    "@antonin-mery"
   ],
   "config_flow": true,
   "documentation": "https://github.com/amery74/ha-poolpilot",
   "integration_type": "hub",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/amery74/ha-poolpilot/issues",
   "requirements": [
     "pypoolchem>=0.1.1"
   ],
-  "version": "1.2.3"
+  "version": "1.2.4",
+  "issue_tracker": "https://github.com/amery74/ha-poolpilot/issues"
 }

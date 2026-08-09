@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "1.2.3"
+VERSION: Final = "1.2.4"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -26,6 +26,7 @@ CONF_FORECAST_TEMP_ENTITY: Final = "forecast_temp_entity"
 
 CONF_TARGET_PH: Final = "target_ph"
 CONF_TARGET_FC: Final = "target_fc"
+CONF_TARGET_ORP: Final = "target_orp"
 CONF_FILTERING_MODE: Final = "filtering_mode"
 CONF_FILTER_COEF: Final = "filter_coef"
 CONF_MIN_FILTER_HOURS: Final = "min_filter_hours"
@@ -69,6 +70,7 @@ FILTERING_MODES = ["off", "manual", "auto"]
 
 DEFAULT_TARGET_PH = 7.4
 DEFAULT_TARGET_FC = 2.0
+DEFAULT_TARGET_ORP = 700.0
 DEFAULT_FILTER_COEF = 2.0
 DEFAULT_MIN_FILTER_HOURS = 2.0
 DEFAULT_MAX_FILTER_HOURS = 24.0

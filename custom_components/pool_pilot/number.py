@@ -17,6 +17,7 @@ class PoolPilotNumberDescription(NumberEntityDescription):
 NUMBERS = (
     PoolPilotNumberDescription(key="target_ph", translation_key="target_ph", config_key=CONF_TARGET_PH, default_value=DEFAULT_TARGET_PH, native_min_value=6.8, native_max_value=8.0, native_step=0.1, mode=NumberMode.SLIDER, icon="mdi:ph"),
     PoolPilotNumberDescription(key="target_fc", translation_key="target_fc", config_key=CONF_TARGET_FC, default_value=DEFAULT_TARGET_FC, native_min_value=0.5, native_max_value=10, native_step=0.1, native_unit_of_measurement="ppm", mode=NumberMode.SLIDER, icon="mdi:water-plus"),
+    PoolPilotNumberDescription(key="target_orp", translation_key="target_orp", config_key=CONF_TARGET_ORP, default_value=DEFAULT_TARGET_ORP, native_min_value=500, native_max_value=900, native_step=10, native_unit_of_measurement="mV", mode=NumberMode.SLIDER, icon="mdi:chart-bell-curve"),
     PoolPilotNumberDescription(key="filter_coef", translation_key="filter_coef", config_key=CONF_FILTER_COEF, default_value=DEFAULT_FILTER_COEF, native_min_value=1, native_max_value=4, native_step=0.1, mode=NumberMode.BOX, icon="mdi:division"),
     PoolPilotNumberDescription(key="min_filter_hours", translation_key="min_filter_hours", config_key=CONF_MIN_FILTER_HOURS, default_value=DEFAULT_MIN_FILTER_HOURS, native_min_value=0, native_max_value=24, native_step=0.5, native_unit_of_measurement="h", mode=NumberMode.BOX, icon="mdi:timer-outline"),
     PoolPilotNumberDescription(key="max_filter_hours", translation_key="max_filter_hours", config_key=CONF_MAX_FILTER_HOURS, default_value=DEFAULT_MAX_FILTER_HOURS, native_min_value=1, native_max_value=24, native_step=0.5, native_unit_of_measurement="h", mode=NumberMode.BOX, icon="mdi:timer"),
@@ -28,7 +29,15 @@ NUMBERS = (
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: PoolPilotCoordinator = entry.runtime_data
-    async_add_entities([PoolPilotNumber(coordinator, entry, desc) for desc in NUMBERS])
+    mode = str(entry.options.get(CONF_DISINFECTION_MODE, entry.data.get(CONF_DISINFECTION_MODE, DEFAULT_DISINFECTION_MODE))).lower()
+    entities = []
+    for desc in NUMBERS:
+        if desc.key == "target_fc" and mode == MEASUREMENT_MODE_ORP:
+            continue
+        if desc.key == "target_orp" and mode != MEASUREMENT_MODE_ORP:
+            continue
+        entities.append(PoolPilotNumber(coordinator, entry, desc))
+    async_add_entities(entities)
 
 class PoolPilotNumber(PoolPilotEntity, NumberEntity):
     entity_description: PoolPilotNumberDescription
