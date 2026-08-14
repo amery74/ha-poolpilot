@@ -39,10 +39,23 @@ def _recommendation_as_alert(data: PoolPilotData) -> dict[str, Any] | None:
     }
 
 
+def _treatment_recommendation_as_alert(data: PoolPilotData) -> dict[str, Any] | None:
+    if not data.treatment_recommendations:
+        return None
+    rec = data.treatment_recommendations[0]
+    return {
+        "id": rec.action,
+        "title": rec.title,
+        "message": rec.message,
+        "icon": rec.icon,
+        "steps": [rec.message, "Contrôlez de nouveau la désinfection après l'action."],
+        "treatment_recommendation": rec.as_dict(),
+    }
+
 def _primary_alert(data: PoolPilotData) -> dict[str, Any] | None:
     if data.pool_alerts:
         return data.pool_alerts[0]
-    return _recommendation_as_alert(data)
+    return _recommendation_as_alert(data) or _treatment_recommendation_as_alert(data)
 
 
 SENSORS = (
@@ -60,8 +73,8 @@ SENSORS = (
     PoolPilotSensorDescription(key="vigilance", translation_key="vigilance", icon="mdi:eye-outline", native_unit_of_measurement="%", value_fn=lambda d: d.vigilance.get("score", 0), attrs_fn=lambda d: d.vigilance),
     PoolPilotSensorDescription(key="algae_risk", translation_key="algae_risk", icon="mdi:leaf", native_unit_of_measurement="%", value_fn=lambda d: d.algae_risk_score, attrs_fn=lambda d: {"level": d.algae_risk_level}),
     PoolPilotSensorDescription(key="health_score", translation_key="health_score", icon="mdi:heart-pulse", native_unit_of_measurement="%", value_fn=lambda d: d.health_score, attrs_fn=lambda d: {"alerts": d.pool_alerts}),
-    PoolPilotSensorDescription(key="alert_status", translation_key="alert_status", icon="mdi:alert-circle-outline", value_fn=lambda d: "Alerte" if d.has_active_alert else "Aucune alerte", attrs_fn=lambda d: {"summary": d.alert_summary, "primary_alert": _primary_alert(d), "pool_alerts": d.pool_alerts, "recommendations": [r.as_dict() for r in d.recommendations], "info": d.alerts, "correction_active_until": d.correction_active_until.isoformat() if d.correction_active_until else None, "correction_summary": d.correction_summary, "vigilance": d.vigilance}),
-    PoolPilotSensorDescription(key="action_summary", translation_key="action_summary", icon="mdi:clipboard-list-outline", value_fn=lambda d: d.action_summary, attrs_fn=lambda d: {"last_product_confirmed": d.last_product_confirmed, "last_updated": d.last_updated.isoformat() if d.last_updated else None, "recommended_filter_hours": d.recommended_filter_hours, "weather_factor": d.weather_factor, "forecast_temp_c": d.forecast_temp_c, "water_temp_c": d.water_temp_c, "chlorine_mode_used": d.chlorine_mode_used, "chlorine_source": d.chlorine_source, "estimated_free_chlorine": d.estimated_free_chlorine, "active_chlorine": d.active_chlorine, "active_chlorine_percent": d.active_chlorine_percent, "disinfection_power": d.disinfection_power, "lsi": d.lsi, "lsi_status": d.lsi_status, "phs": d.phs, "minf": d.minf, "tds": d.tds, "taylor_status": d.taylor_status, "taylor_comment": d.taylor_comment, "auto_filter_summary": d.auto_filter_summary, "auto_filter_remaining_hours": d.auto_filter_remaining_hours, "auto_schedule_enabled": d.auto_schedule_enabled, "auto_schedule_status": d.auto_schedule_status, "auto_schedule_target_hours": d.auto_schedule_target_hours, "auto_schedule_done_hours": d.auto_schedule_done_hours, "filtration_progress_percent": d.filtration_progress_percent, "filtration_remaining_hours": d.filtration_remaining_hours, "maintenance_mode": d.maintenance_mode, "auto_schedule_next_start": d.auto_schedule_next_start.isoformat() if d.auto_schedule_next_start else None, "detail": d.detail, "disinfection_mode": d.detail.get("disinfection_mode"), "electrolyzer": {"type": d.electrolyzer_type, "on": d.electrolyzer_on, "production_percent": d.electrolyzer_output_percent, "boost": d.electrolyzer_boost_on, "status": d.electrolyzer_status}, "recommendations": [r.as_dict() for r in d.recommendations]}),
+    PoolPilotSensorDescription(key="alert_status", translation_key="alert_status", icon="mdi:alert-circle-outline", value_fn=lambda d: "Alerte" if d.has_active_alert else "Aucune alerte", attrs_fn=lambda d: {"summary": d.alert_summary, "primary_alert": _primary_alert(d), "pool_alerts": d.pool_alerts, "recommendations": [r.as_dict() for r in d.recommendations], "treatment_recommendations": [r.as_dict() for r in d.treatment_recommendations], "pool_type": d.pool_type, "info": d.alerts, "correction_active_until": d.correction_active_until.isoformat() if d.correction_active_until else None, "correction_summary": d.correction_summary, "vigilance": d.vigilance}),
+    PoolPilotSensorDescription(key="action_summary", translation_key="action_summary", icon="mdi:clipboard-list-outline", value_fn=lambda d: d.action_summary, attrs_fn=lambda d: {"last_product_confirmed": d.last_product_confirmed, "last_updated": d.last_updated.isoformat() if d.last_updated else None, "recommended_filter_hours": d.recommended_filter_hours, "weather_factor": d.weather_factor, "forecast_temp_c": d.forecast_temp_c, "water_temp_c": d.water_temp_c, "chlorine_mode_used": d.chlorine_mode_used, "chlorine_source": d.chlorine_source, "estimated_free_chlorine": d.estimated_free_chlorine, "active_chlorine": d.active_chlorine, "active_chlorine_percent": d.active_chlorine_percent, "disinfection_power": d.disinfection_power, "lsi": d.lsi, "lsi_status": d.lsi_status, "phs": d.phs, "minf": d.minf, "tds": d.tds, "taylor_status": d.taylor_status, "taylor_comment": d.taylor_comment, "auto_filter_summary": d.auto_filter_summary, "auto_filter_remaining_hours": d.auto_filter_remaining_hours, "auto_schedule_enabled": d.auto_schedule_enabled, "auto_schedule_status": d.auto_schedule_status, "auto_schedule_target_hours": d.auto_schedule_target_hours, "auto_schedule_done_hours": d.auto_schedule_done_hours, "filtration_progress_percent": d.filtration_progress_percent, "filtration_remaining_hours": d.filtration_remaining_hours, "maintenance_mode": d.maintenance_mode, "auto_schedule_next_start": d.auto_schedule_next_start.isoformat() if d.auto_schedule_next_start else None, "detail": d.detail, "disinfection_mode": d.detail.get("disinfection_mode"), "electrolyzer": {"type": d.electrolyzer_type, "on": d.electrolyzer_on, "production_percent": d.electrolyzer_output_percent, "boost": d.electrolyzer_boost_on, "status": d.electrolyzer_status}, "recommendations": [r.as_dict() for r in d.recommendations], "treatment_recommendations": [r.as_dict() for r in d.treatment_recommendations], "pool_type": d.pool_type}),
     PoolPilotSensorDescription(key="ph", translation_key="ph", icon="mdi:ph", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.ph),
     PoolPilotSensorDescription(key="orp", translation_key="orp", native_unit_of_measurement="mV", icon="mdi:chart-bell-curve", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.orp),
     PoolPilotSensorDescription(key="free_chlorine", translation_key="free_chlorine", native_unit_of_measurement="ppm", icon="mdi:water-plus", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.free_chlorine),
@@ -72,7 +85,7 @@ SENSORS = (
     PoolPilotSensorDescription(key="phs", name="pHs", translation_key="phs", icon="mdi:water-percent", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.phs),
     PoolPilotSensorDescription(key="minf", name="MINF / TDS", translation_key="minf", native_unit_of_measurement="ppm", icon="mdi:water-opacity", state_class=SensorStateClass.MEASUREMENT, value_fn=lambda d: d.minf),
     PoolPilotSensorDescription(key="taylor_status", name="Balance de Taylor", translation_key="taylor_status", icon="mdi:scale-balance", value_fn=lambda d: d.taylor_status, attrs_fn=lambda d: {"lsi": d.lsi, "phs": d.phs, "minf": d.minf, "tds": d.tds, "comment": d.taylor_comment}),
-    PoolPilotSensorDescription(key="product_recommendation", translation_key="product_recommendation", icon="mdi:flask-plus", value_fn=lambda d: (f"Ajouter {round(d.recommendations[0].quantity, 2)} {d.recommendations[0].unit} de {d.recommendations[0].product_name}" if d.recommendations else "Aucune recommandation produit"), attrs_fn=lambda d: {"recommendations": [r.as_dict() for r in d.recommendations]}),
+    PoolPilotSensorDescription(key="product_recommendation", translation_key="product_recommendation", icon="mdi:flask-plus", value_fn=lambda d: (f"Ajouter {round(d.recommendations[0].quantity, 2)} {d.recommendations[0].unit} de {d.recommendations[0].product_name}" if d.recommendations else "Aucune recommandation produit"), attrs_fn=lambda d: {"recommendations": [r.as_dict() for r in d.recommendations], "treatment_recommendations": [r.as_dict() for r in d.treatment_recommendations], "pool_type": d.pool_type}),
     PoolPilotSensorDescription(key="pool_house", translation_key="pool_house", icon="mdi:home-silo", value_fn=lambda d: len(d.products), attrs_fn=lambda d: {"products": [p.as_dict() for p in d.products]}),
     PoolPilotSensorDescription(
         key="strip_test",

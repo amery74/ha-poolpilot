@@ -35,24 +35,14 @@
           "electrolyzer_boost_entity": "Commande Boost de l’électrolyseur (optionnelle)",
           "electrolyzer_status_entity": "État ou diagnostic de l’électrolyseur (optionnel)"
         }
-      }
-    },
-    "selector": {
-      "pool_type": {
-        "options": {
-          "chlorine": "Chlore",
-          "saltwater": "Électrolyse au sel",
-          "bromine": "Brome"
-        }
       },
-      "surface_type": {
-        "options": {
-          "liner": "Liner",
-          "polyester": "Coque polyester",
-          "concrete": "Béton",
-          "tile": "Carrelage",
-          "painted": "Peinture",
-          "other": "Autre"
+      "treatment": {
+        "title": "Traitement et mesure de désinfection",
+        "description": "La mesure disponible dépend du traitement principal. Le brome et l’oxygène actif utilisent uniquement l’ORP / RedOx.",
+        "data": {
+          "disinfection_mode": "Mesure de désinfection",
+          "electrolyzer_type": "Gestion de l’électrolyseur",
+          "target_orp": "Consigne ORP / RedOx du traitement (mV)"
         }
       }
     }
@@ -83,15 +73,6 @@
           "electrolyzer_status_entity": "État électrolyseur",
           "filtration_placement_mode": "Placement de la filtration automatique",
           "filtration_center_hour": "Heure centrale"
-        }
-      }
-    },
-    "selector": {
-      "filtering_mode": {
-        "options": {
-          "off": "Arrêt",
-          "manual": "Manuel",
-          "auto": "Auto intelligent"
         }
       }
     }

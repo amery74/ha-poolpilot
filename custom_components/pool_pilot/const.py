@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "1.2.4"
+VERSION: Final = "1.3.0-beta"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -64,7 +64,8 @@ DEFAULT_FILTRATION_PLACEMENT_MODE: Final = FILTRATION_PLACEMENT_CENTERED
 POOL_TYPE_CHLORINE = "chlorine"
 POOL_TYPE_SALT = "saltwater"
 POOL_TYPE_BROMINE = "bromine"
-POOL_TYPES = [POOL_TYPE_CHLORINE, POOL_TYPE_SALT, POOL_TYPE_BROMINE]
+POOL_TYPE_ACTIVE_OXYGEN = "active_oxygen"
+POOL_TYPES = [POOL_TYPE_CHLORINE, POOL_TYPE_SALT, POOL_TYPE_BROMINE, POOL_TYPE_ACTIVE_OXYGEN]
 SURFACE_TYPES = ["liner", "polyester", "concrete", "tile", "painted", "other"]
 FILTERING_MODES = ["off", "manual", "auto"]
 

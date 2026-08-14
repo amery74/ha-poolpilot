@@ -16,6 +16,7 @@ TREATMENT_TYPE_OPTIONS = [
     {"value": POOL_TYPE_CHLORINE, "label": "Chlore"},
     {"value": POOL_TYPE_SALT, "label": "Électrolyse au sel"},
     {"value": POOL_TYPE_BROMINE, "label": "Brome"},
+    {"value": POOL_TYPE_ACTIVE_OXYGEN, "label": "Oxygène actif"},
 ]
 
 SURFACE_TYPE_OPTIONS = [
@@ -38,6 +39,20 @@ DISINFECTION_MODE_OPTIONS = [
     {"value": MEASUREMENT_MODE_CHLORINE, "label": "Chlore libre (ppm)"},
 ]
 
+
+def measurement_options_for_treatment(pool_type: str) -> list[dict[str, str]]:
+    """Return only measurement modes compatible with the selected treatment."""
+    if pool_type in (POOL_TYPE_BROMINE, POOL_TYPE_ACTIVE_OXYGEN):
+        return [{"value": MEASUREMENT_MODE_ORP, "label": "ORP / RedOx (mV)"}]
+    return DISINFECTION_MODE_OPTIONS
+
+
+def normalize_measurement_for_treatment(pool_type: str, mode: str) -> str:
+    """Force ORP for treatments where free-chlorine measurement is not applicable."""
+    if pool_type in (POOL_TYPE_BROMINE, POOL_TYPE_ACTIVE_OXYGEN):
+        return MEASUREMENT_MODE_ORP
+    return mode if mode in MEASUREMENT_MODES else DEFAULT_DISINFECTION_MODE
+
 ELECTROLYZER_TYPE_OPTIONS = [
     {"value": ELECTROLYZER_TYPE_NONE, "label": "Aucun électrolyseur"},
     {"value": ELECTROLYZER_TYPE_SIMPLE, "label": "Simple — marche / arrêt"},
@@ -58,7 +73,7 @@ FILTERING_MODE_OPTIONS = [
 
 class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    MINOR_VERSION = 7
+    MINOR_VERSION = 8
 
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
@@ -73,15 +88,33 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
             self._data.update({k: v for k, v in user_input.items() if v not in (None, "")})
             await self.async_set_unique_id(str(user_input[CONF_POOL_NAME]).lower().replace(" ", "_"))
             self._abort_if_unique_id_configured()
-            return await self.async_step_entities()
+            return await self.async_step_treatment()
         return self.async_show_form(step_id="user", data_schema=vol.Schema({
             vol.Required(CONF_POOL_NAME, default="Piscine"): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_VOLUME_M3, default=50.0): NumberSelector(NumberSelectorConfig(min=1, max=500, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="m³")),
             vol.Required(CONF_POOL_TYPE, default=POOL_TYPE_CHLORINE): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_SURFACE_TYPE, default="liner"): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
-            vol.Required(CONF_DISINFECTION_MODE, default=DEFAULT_DISINFECTION_MODE): SelectSelector(SelectSelectorConfig(options=DISINFECTION_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
-            vol.Required(CONF_ELECTROLYZER_TYPE, default=DEFAULT_ELECTROLYZER_TYPE): SelectSelector(SelectSelectorConfig(options=ELECTROLYZER_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
         }))
+
+    async def async_step_treatment(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        pool_type = str(self._data.get(CONF_POOL_TYPE, POOL_TYPE_CHLORINE))
+        allowed_modes = measurement_options_for_treatment(pool_type)
+        default_mode = MEASUREMENT_MODE_ORP if pool_type in (POOL_TYPE_BROMINE, POOL_TYPE_ACTIVE_OXYGEN) else DEFAULT_DISINFECTION_MODE
+        default_electrolyzer = ELECTROLYZER_TYPE_ADVANCED if pool_type == POOL_TYPE_SALT else DEFAULT_ELECTROLYZER_TYPE
+        if user_input is not None:
+            clean = {k: v for k, v in user_input.items() if v not in (None, "")}
+            clean[CONF_DISINFECTION_MODE] = normalize_measurement_for_treatment(pool_type, str(clean.get(CONF_DISINFECTION_MODE, default_mode)))
+            self._data.update(clean)
+            return await self.async_step_entities()
+        treatment_schema = {
+            vol.Required(CONF_DISINFECTION_MODE, default=default_mode): SelectSelector(SelectSelectorConfig(options=allowed_modes, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_ELECTROLYZER_TYPE, default=default_electrolyzer): SelectSelector(SelectSelectorConfig(options=ELECTROLYZER_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+        }
+        if pool_type in (POOL_TYPE_BROMINE, POOL_TYPE_ACTIVE_OXYGEN):
+            # No universal ORP target is imposed for these treatments: ask the user
+            # to enter the value recommended for the product/system in use.
+            treatment_schema[vol.Required(CONF_TARGET_ORP)] = NumberSelector(NumberSelectorConfig(min=100, max=1000, step=10, mode=NumberSelectorMode.BOX, unit_of_measurement="mV"))
+        return self.async_show_form(step_id="treatment", data_schema=vol.Schema(treatment_schema))
 
     async def async_step_entities(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
@@ -89,7 +122,7 @@ class PoolPilotConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(title=self._data[CONF_POOL_NAME], data=self._data, options={
                 CONF_TARGET_PH: DEFAULT_TARGET_PH,
                 CONF_TARGET_FC: DEFAULT_TARGET_FC,
-                CONF_TARGET_ORP: DEFAULT_TARGET_ORP,
+                CONF_TARGET_ORP: self._data.get(CONF_TARGET_ORP, DEFAULT_TARGET_ORP),
                 CONF_FILTERING_MODE: "auto",
                 CONF_AUTO_START_TIME: DEFAULT_AUTO_START_TIME,
                 CONF_AUTO_END_TIME: DEFAULT_AUTO_END_TIME,
@@ -156,6 +189,9 @@ class PoolPilotOptionsFlow(OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
+            selected_pool_type = str(user_input.get(CONF_POOL_TYPE, self._current(CONF_POOL_TYPE, POOL_TYPE_CHLORINE)))
+            if CONF_DISINFECTION_MODE in user_input:
+                user_input[CONF_DISINFECTION_MODE] = normalize_measurement_for_treatment(selected_pool_type, str(user_input[CONF_DISINFECTION_MODE]))
             data_keys = {
                 CONF_POOL_NAME, CONF_VOLUME_M3, CONF_POOL_TYPE, CONF_SURFACE_TYPE,
                 CONF_TEMP_ENTITY, CONF_PH_ENTITY, CONF_ORP_ENTITY, CONF_FC_ENTITY,
@@ -197,12 +233,15 @@ class PoolPilotOptionsFlow(OptionsFlow):
         electrolyzer_output = EntitySelector(EntitySelectorConfig(domain=["number", "input_number", "sensor"]))
         electrolyzer_boost = EntitySelector(EntitySelectorConfig(domain=["switch", "input_boolean", "button"]))
         any_state = EntitySelector(EntitySelectorConfig())
+        current_pool_type = str(self._current(CONF_POOL_TYPE, POOL_TYPE_CHLORINE))
+        current_measurement_options = measurement_options_for_treatment(current_pool_type)
+        current_measurement_mode = normalize_measurement_for_treatment(current_pool_type, str(self._current(CONF_DISINFECTION_MODE, DEFAULT_DISINFECTION_MODE)))
         schema = {
             vol.Required(CONF_POOL_NAME, default=self._current(CONF_POOL_NAME, "Piscine")): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
             vol.Required(CONF_VOLUME_M3, default=self._current(CONF_VOLUME_M3, 50.0)): NumberSelector(NumberSelectorConfig(min=1, max=500, step=0.5, mode=NumberSelectorMode.BOX, unit_of_measurement="m³")),
             vol.Required(CONF_POOL_TYPE, default=self._current(CONF_POOL_TYPE, POOL_TYPE_CHLORINE)): SelectSelector(SelectSelectorConfig(options=TREATMENT_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_SURFACE_TYPE, default=self._current(CONF_SURFACE_TYPE, "liner")): SelectSelector(SelectSelectorConfig(options=SURFACE_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
-            vol.Required(CONF_DISINFECTION_MODE, default=self._current(CONF_DISINFECTION_MODE, DEFAULT_DISINFECTION_MODE)): SelectSelector(SelectSelectorConfig(options=DISINFECTION_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
+            vol.Required(CONF_DISINFECTION_MODE, default=current_measurement_mode): SelectSelector(SelectSelectorConfig(options=current_measurement_options, mode=SelectSelectorMode.DROPDOWN)),
             vol.Required(CONF_ELECTROLYZER_TYPE, default=self._current(CONF_ELECTROLYZER_TYPE, DEFAULT_ELECTROLYZER_TYPE)): SelectSelector(SelectSelectorConfig(options=ELECTROLYZER_TYPE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),
             (vol.Required(CONF_TEMP_ENTITY, default=self._current(CONF_TEMP_ENTITY)) if self._current(CONF_TEMP_ENTITY, None) else vol.Required(CONF_TEMP_ENTITY)): sensor,
             self._optional_entity(CONF_PUMP_SWITCH): switch,
@@ -218,8 +257,8 @@ class PoolPilotOptionsFlow(OptionsFlow):
             self._optional_entity(CONF_ELECTROLYZER_STATUS_ENTITY): any_state,
             vol.Required(CONF_TARGET_PH, default=self._current(CONF_TARGET_PH, DEFAULT_TARGET_PH)): NumberSelector(NumberSelectorConfig(min=6.8, max=8.0, step=0.1, mode=NumberSelectorMode.SLIDER)),
             **({
-                vol.Required(CONF_TARGET_ORP, default=self._current(CONF_TARGET_ORP, DEFAULT_TARGET_ORP)): NumberSelector(NumberSelectorConfig(min=500, max=900, step=10, mode=NumberSelectorMode.SLIDER, unit_of_measurement="mV")),
-            } if self._current(CONF_DISINFECTION_MODE, DEFAULT_DISINFECTION_MODE) == MEASUREMENT_MODE_ORP else {
+                vol.Required(CONF_TARGET_ORP, default=self._current(CONF_TARGET_ORP, DEFAULT_TARGET_ORP)): NumberSelector(NumberSelectorConfig(min=100, max=1000, step=10, mode=NumberSelectorMode.SLIDER, unit_of_measurement="mV")),
+            } if current_measurement_mode == MEASUREMENT_MODE_ORP else {
                 vol.Required(CONF_TARGET_FC, default=self._current(CONF_TARGET_FC, DEFAULT_TARGET_FC)): NumberSelector(NumberSelectorConfig(min=0.5, max=10, step=0.1, mode=NumberSelectorMode.SLIDER, unit_of_measurement="ppm")),
             }),
             vol.Required(CONF_FILTERING_MODE, default=self._current(CONF_FILTERING_MODE, "auto")): SelectSelector(SelectSelectorConfig(options=FILTERING_MODE_OPTIONS, mode=SelectSelectorMode.DROPDOWN)),

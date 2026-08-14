@@ -35,6 +35,15 @@
           "electrolyzer_boost_entity": "Commande Boost de l’électrolyseur (optionnelle)",
           "electrolyzer_status_entity": "État ou diagnostic de l’électrolyseur (optionnel)"
         }
+      },
+      "treatment": {
+        "title": "Traitement et mesure de désinfection",
+        "description": "La mesure disponible dépend du traitement principal. Le brome et l’oxygène actif utilisent uniquement l’ORP / RedOx.",
+        "data": {
+          "disinfection_mode": "Mesure de désinfection",
+          "electrolyzer_type": "Gestion de l’électrolyseur",
+          "target_orp": "Consigne ORP / RedOx du traitement (mV)"
+        }
       }
     }
   },

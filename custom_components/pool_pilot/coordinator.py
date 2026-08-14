@@ -160,6 +160,27 @@ class ProductRecommendation:
         }
 
 @dataclass
+class TreatmentRecommendation:
+    action: str
+    title: str
+    message: str
+    treatment: str
+    entity_id: str | None = None
+    service: str | None = None
+    icon: str = "mdi:information-outline"
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "action": self.action,
+            "title": self.title,
+            "message": self.message,
+            "treatment": self.treatment,
+            "entity_id": self.entity_id,
+            "service": self.service,
+            "icon": self.icon,
+        }
+
+@dataclass
 class PoolPilotData:
     water_temp_c: float | None = None
     ph: float | None = None
@@ -210,6 +231,8 @@ class PoolPilotData:
     correction_summary: str | None = None
     vigilance: dict[str, Any] = field(default_factory=dict)
     recommendations: list[ProductRecommendation] = field(default_factory=list)
+    treatment_recommendations: list[TreatmentRecommendation] = field(default_factory=list)
+    pool_type: str = POOL_TYPE_CHLORINE
     products: list[ChemicalProduct] = field(default_factory=list)
     last_product_confirmed: str | None = None
     last_updated: datetime | None = None
@@ -1336,9 +1359,9 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             if temp >= 30:
                 add("hot_water", "Eau très chaude", "La température augmente la consommation de désinfectant et le risque d’algues.", f"{round(temp,1)} °C", 28, "mdi:thermometer-alert")
             elif temp >= 28:
-                add("warm_water", "Eau chaude", "L’eau est chaude : le risque biologique augmente si le chlore baisse.", f"{round(temp,1)} °C", 18, "mdi:thermometer")
+                add("warm_water", "Eau chaude", "L’eau est chaude : le risque biologique augmente si la désinfection baisse.", f"{round(temp,1)} °C", 18, "mdi:thermometer")
             elif temp >= 26:
-                add("mild_warm_water", "Température à surveiller", "L’eau est dans une zone favorable à une consommation plus rapide du chlore.", f"{round(temp,1)} °C", 8, "mdi:thermometer")
+                add("mild_warm_water", "Température à surveiller", "L’eau est dans une zone favorable à une consommation plus rapide du désinfectant.", f"{round(temp,1)} °C", 8, "mdi:thermometer")
 
         if ph is not None:
             target = float(self.option(CONF_TARGET_PH, DEFAULT_TARGET_PH))
@@ -1399,7 +1422,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             "advice": [
                 "Maintenir la filtration automatique.",
                 "Contrôler l’évolution demain ou après la prochaine mesure.",
-                "Vérifier pH et chlore si la température continue de monter.",
+                "Vérifier le pH et la désinfection si la température continue de monter.",
             ] if level != "ok" else [],
         }
 
@@ -1416,10 +1439,19 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
     def _scenario_steps(self, alert_id: str, product_name: str | None = None, product_qty: float | None = None, product_unit: str | None = None) -> list[str]:
         if alert_id == "green_algae_risk":
-            product = product_name or "chlore choc"
+            pool_type = self._pool_type()
             qty = f"{round(product_qty, 2)} {product_unit} de " if product_qty is not None and product_unit else ""
+            if pool_type == POOL_TYPE_SALT:
+                first = "Renforcez temporairement la production de l’électrolyseur et utilisez le mode Boost s’il est disponible."
+            elif pool_type == POOL_TYPE_BROMINE:
+                first = f"Renforcez le traitement au brome{(' avec ' + qty + product_name) if product_name else ''}."
+            elif pool_type == POOL_TYPE_ACTIVE_OXYGEN:
+                first = f"Renforcez le traitement à l’oxygène actif{(' avec ' + qty + product_name) if product_name else ''}."
+            else:
+                product = product_name or "chlore choc"
+                first = f"Réalisez un traitement au chlore choc avec {qty}{product}."
             return [
-                f"Réalisez un traitement au chlore choc avec {qty}{product}.",
+                first,
                 "Contrôlez le pH avant le traitement et ajustez-le si nécessaire.",
                 "Brossez les parois et le fond du bassin.",
                 "Laissez la filtration fonctionner en continu pendant 24 à 48 h.",
@@ -1434,7 +1466,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             return [
                 "Activez le mode refroidissement de la pompe à chaleur si disponible.",
                 "Augmentez la filtration pendant les heures les plus chaudes.",
-                "Contrôlez le pH et le chlore quotidiennement.",
+                "Contrôlez le pH et la désinfection quotidiennement.",
             ]
         if alert_id == "storm":
             return [
@@ -1442,7 +1474,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 "Retirez les bouées et les objets pouvant s'envoler. Le capteur peut rester dans la piscine.",
                 "Vérifiez le niveau d'eau et abaissez la ligne d'eau d'environ 3 cm si nécessaire.",
                 "En cas de forte activité électrique, coupez l'alimentation de la pompe et des équipements électriques.",
-                "Après l'orage, contrôlez le pH, le chlore et relancez la filtration si elle a été arrêtée.",
+                "Après l'orage, contrôlez le pH et la désinfection puis relancez la filtration si elle a été arrêtée.",
             ]
         if alert_id == "flipr_battery_low":
             return [
@@ -1456,17 +1488,28 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             ]
         return ["Suivez les recommandations Pool Pilot."]
 
-    def _shock_chlorine_recommendation(self) -> tuple[str | None, float | None, str | None]:
-        """Return the preferred shock product and dose for the pool volume."""
-        product = self._best_product("chlorine_shock") or self._best_product("chlorine_liquid")
-        if product is None:
-            # Fallback for products created before category split.
-            for p in self.products.values():
-                name = (p.name or "").lower()
-                cat = normalize_product_category(p.category or "").lower()
-                if "choc" in name or "shock" in name or cat == "chlorine_shock":
-                    product = p
-                    break
+    def _shock_treatment_recommendation(self) -> tuple[str | None, float | None, str | None]:
+        """Return a compatible product/dose for a high algae risk.
+
+        Salt pools do not receive an automatic chlorine-product recommendation:
+        their primary response is electrolyzer production / Boost.
+        """
+        pool_type = self._pool_type()
+        if pool_type == POOL_TYPE_SALT:
+            return None, None, None
+        if pool_type == POOL_TYPE_BROMINE:
+            product = self._best_product("bromine")
+        elif pool_type == POOL_TYPE_ACTIVE_OXYGEN:
+            product = self._best_product("active_oxygen")
+        else:
+            product = self._best_product("chlorine_shock") or self._best_product("chlorine_liquid")
+            if product is None:
+                for candidate in self.products.values():
+                    name = (candidate.name or "").lower()
+                    cat = normalize_product_category(candidate.category or "").lower()
+                    if "choc" in name or "shock" in name or cat == "chlorine_shock":
+                        product = candidate
+                        break
         if product is None:
             return None, None, None
         qty = self._dose_for_product(product, 1.0)
@@ -1508,7 +1551,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         algae_score, algae_level, algae_reasons = self._algae_risk(water_temp, ph, orp, fc, weather_factor)
         threshold = float(self.option(CONF_ALGAE_RISK_SENSITIVITY, DEFAULT_ALGAE_RISK_SENSITIVITY))
         if algae_score >= threshold:
-            shock_product, shock_quantity, shock_unit = self._shock_chlorine_recommendation()
+            shock_product, shock_quantity, shock_unit = self._shock_treatment_recommendation()
             alerts.append({
                 "id": "green_algae_risk",
                 "type": "water_quality",
@@ -1525,7 +1568,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 "quantity": shock_quantity,
                 "unit": shock_unit,
                 "steps": self._scenario_steps("green_algae_risk", shock_product, shock_quantity, shock_unit),
-                "action_type": "chemical_shock",
+                "action_type": "electrolyzer_boost" if self._pool_type() == POOL_TYPE_SALT else "treatment_boost",
             })
 
         return alerts
@@ -1625,6 +1668,56 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             return 0.0
         return product.dosage_quantity * (volume / product.volume_basis_m3) * delta_steps
 
+    def _pool_type(self) -> str:
+        raw = str(self.config_entry.data.get(CONF_POOL_TYPE, POOL_TYPE_CHLORINE) or POOL_TYPE_CHLORINE).lower()
+        return raw if raw in POOL_TYPES else POOL_TYPE_CHLORINE
+
+    def _preferred_disinfection_product(self) -> ChemicalProduct | None:
+        """Return a product compatible with the configured primary treatment."""
+        pool_type = self._pool_type()
+        if pool_type == POOL_TYPE_BROMINE:
+            return self._best_product("bromine")
+        if pool_type == POOL_TYPE_ACTIVE_OXYGEN:
+            return self._best_product("active_oxygen")
+        if pool_type == POOL_TYPE_SALT:
+            return None
+        return self._best_product("chlorine_slow") or self._best_product("chlorine_liquid")
+
+    def _build_treatment_recommendations(self, fc: float | None, orp: float | None) -> list[TreatmentRecommendation]:
+        """Build non-product actions, mainly for salt/electrolyzer pools."""
+        pool_type = self._pool_type()
+        recs: list[TreatmentRecommendation] = []
+        mode = self._disinfection_mode()
+        target_orp = float(self.option(CONF_TARGET_ORP, DEFAULT_TARGET_ORP))
+        target_fc = float(self.option(CONF_TARGET_FC, DEFAULT_TARGET_FC))
+        low = (orp is not None and orp < target_orp - 50) if mode == MEASUREMENT_MODE_ORP else (fc is not None and fc < target_fc * 0.75)
+        high = (orp is not None and orp > target_orp + 150) if mode == MEASUREMENT_MODE_ORP else (fc is not None and fc > target_fc * 1.5)
+        if pool_type == POOL_TYPE_SALT:
+            boost_entity = self.config_entry.data.get(CONF_ELECTROLYZER_BOOST_ENTITY)
+            output_entity = self.config_entry.data.get(CONF_ELECTROLYZER_OUTPUT_ENTITY)
+            if low:
+                if boost_entity:
+                    recs.append(TreatmentRecommendation(
+                        action="electrolyzer_boost", title="Désinfection à renforcer",
+                        message="Activez temporairement le mode Boost de l’électrolyseur.",
+                        treatment=pool_type, entity_id=boost_entity, service="turn_on", icon="mdi:lightning-bolt"))
+                elif output_entity:
+                    recs.append(TreatmentRecommendation(
+                        action="electrolyzer_increase", title="Désinfection à renforcer",
+                        message="Augmentez temporairement la production de l’électrolyseur.",
+                        treatment=pool_type, entity_id=output_entity, icon="mdi:chart-line"))
+                else:
+                    recs.append(TreatmentRecommendation(
+                        action="electrolyzer_increase", title="Désinfection à renforcer",
+                        message="Augmentez temporairement la production de l’électrolyseur ou activez son mode Boost.",
+                        treatment=pool_type, icon="mdi:lightning-bolt"))
+            elif high:
+                recs.append(TreatmentRecommendation(
+                    action="electrolyzer_reduce", title="Désinfection élevée",
+                    message="Réduisez temporairement la production de l’électrolyseur et contrôlez de nouveau la mesure.",
+                    treatment=pool_type, entity_id=output_entity, icon="mdi:chart-line-variant"))
+        return recs
+
     def _build_recommendations(self, ph: float | None, fc: float | None, orp: float | None, algae_score: float | None = None) -> list[ProductRecommendation]:
         recs: list[ProductRecommendation] = []
         target_ph = float(self.option(CONF_TARGET_PH, DEFAULT_TARGET_PH))
@@ -1645,27 +1738,37 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
                 recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"pH actuel {ph:.2f}, cible {target_ph:.2f}.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
         if disinfection_mode == MEASUREMENT_MODE_ORP:
             if orp is not None and orp < target_orp - 50:
-                product = self._best_product("chlorine_slow") or self._best_product("chlorine_liquid") or self._best_product("bromine") or self._best_product("active_oxygen")
+                product = self._preferred_disinfection_product()
                 if product:
                     qty = self._dose_for_product(product, 1.0)
                     recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"RedOx {orp:.0f} mV, cible {target_orp:.0f} mV : désinfection à renforcer.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
         elif fc is not None and fc < target_fc * 0.75:
-            product = self._best_product("chlorine_slow") or self._best_product("chlorine_liquid") or self._best_product("bromine") or self._best_product("active_oxygen")
+            product = self._preferred_disinfection_product()
             if product:
                 delta = max(target_fc - fc, 0.1)
                 steps = delta / (product.effect_delta or 1.0)
                 qty = self._dose_for_product(product, steps)
                 recs.append(ProductRecommendation(product.id, product.name, product.category, qty, product.dosage_unit, f"Chlore libre {fc:.2f} ppm, cible {target_fc:.2f} ppm.", stock_after=(product.stock_quantity - qty) if product.stock_quantity is not None and product.stock_unit == product.dosage_unit else None, stock_unit=product.stock_unit))
-        # En cas de risque d'algues élevé, privilégier un chlore choc s'il est configuré.
+        # En cas de risque d'algues élevé, ne proposer qu'un produit compatible
+        # avec le traitement principal. Une piscine au sel privilégie l'électrolyseur/Boost.
         try:
             current_algae_score = float(algae_score or 0)
         except Exception:
             current_algae_score = 0.0
         if current_algae_score >= float(self.option(CONF_ALGAE_RISK_SENSITIVITY, DEFAULT_ALGAE_RISK_SENSITIVITY)):
-            shock = self._best_product("chlorine_shock") or self._best_product("chlorine_liquid")
+            pool_type = self._pool_type()
+            shock = None
+            aftercare = "Laissez la filtration fonctionner 24 à 48 h puis contrôlez de nouveau la désinfection."
+            if pool_type == POOL_TYPE_CHLORINE:
+                shock = self._best_product("chlorine_shock") or self._best_product("chlorine_liquid")
+                aftercare = "Laissez la filtration fonctionner 24 à 48 h et contrôlez le chlore après traitement."
+            elif pool_type == POOL_TYPE_BROMINE:
+                shock = self._best_product("bromine")
+            elif pool_type == POOL_TYPE_ACTIVE_OXYGEN:
+                shock = self._best_product("active_oxygen")
             if shock and not any(r.product_id == shock.id for r in recs):
                 qty = self._dose_for_product(shock, 1.0)
-                recs.insert(0, ProductRecommendation(shock.id, shock.name, shock.category, qty, shock.dosage_unit, "Risque d’algues élevé : traitement choc recommandé.", aftercare="Laissez la filtration fonctionner 24 à 48 h et contrôlez le chlore après traitement.", stock_after=(shock.stock_quantity - qty) if shock.stock_quantity is not None and shock.stock_unit == shock.dosage_unit else None, stock_unit=shock.stock_unit))
+                recs.insert(0, ProductRecommendation(shock.id, shock.name, shock.category, qty, shock.dosage_unit, "Risque d’algues élevé : renforcez le traitement principal.", aftercare=aftercare, stock_after=(shock.stock_quantity - qty) if shock.stock_quantity is not None and shock.stock_unit == shock.dosage_unit else None, stock_unit=shock.stock_unit))
         return recs
 
     def _strip_or_entity_float(self, strip_key: str, entity_id: str | None, prefer_strip: bool = False) -> float | None:
@@ -1682,7 +1785,9 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
 
 
     def _disinfection_mode(self) -> str:
-        """Return the configured disinfection measurement strategy."""
+        """Return the configured measurement strategy, constrained by treatment."""
+        if self._pool_type() in (POOL_TYPE_BROMINE, POOL_TYPE_ACTIVE_OXYGEN):
+            return MEASUREMENT_MODE_ORP
         raw = str(self.option(CONF_DISINFECTION_MODE, DEFAULT_DISINFECTION_MODE) or "").lower()
         if raw in DISINFECTION_MODES:
             return raw
@@ -1811,9 +1916,15 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         salt = self._float(d.get(CONF_SALT_ENTITY))
         chlorine_mode = self._chlorine_mode()
         disinfection_mode = self._disinfection_mode()
-        estimated_fc = self._estimated_free_chlorine(orp, ph, temp)
+        pool_type = self._pool_type()
+        chlorine_applicable = pool_type in (POOL_TYPE_CHLORINE, POOL_TYPE_SALT)
+        estimated_fc = self._estimated_free_chlorine(orp, ph, temp) if chlorine_applicable else None
 
-        if disinfection_mode == "orp":
+        if not chlorine_applicable:
+            fc = None
+            chlorine_mode_used = "not_applicable"
+            chlorine_source = "ORP / RedOx"
+        elif disinfection_mode == "orp":
             fc = estimated_fc
             chlorine_mode_used = "estimated"
             chlorine_source = "ORP + pH"
@@ -1829,7 +1940,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             fc = fc_measured
             chlorine_mode_used = "measured"
             chlorine_source = "capteur"
-        active_chlorine, active_chlorine_percent, disinfection_power = self._active_chlorine(fc, ph, temp, cya)
+        active_chlorine, active_chlorine_percent, disinfection_power = self._active_chlorine(fc, ph, temp, cya) if chlorine_applicable else (None, None, "not_applicable")
         lsi, lsi_status, phs, minf, tds, taylor_comment = self._lsi(ph, temp, ta, ch, salt)
         pump_on = self._is_on(self._pump_state_entity())
         hp_on = self._is_on(d.get(CONF_HEATPUMP_ENTITY))
@@ -1843,12 +1954,15 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         pool_alerts = self._build_pool_alerts(temp, ph, orp, fc, weather_factor)
         algae_score, algae_level, algae_reasons = self._algae_risk(temp, ph, orp, fc, weather_factor)
         chemistry_status, alerts = self._chemistry_status(ph, orp, fc)
-        recs = self._build_recommendations(ph, fc, orp)
+        recs = self._build_recommendations(ph, fc, orp, algae_score)
+        treatment_recs = self._build_treatment_recommendations(fc, orp)
         for a in pool_alerts:
             if a.get('title'):
                 alerts.append(str(a.get('title')))
         for rec in recs:
             alerts.append(f"Ajouter {self._fmt_quantity(rec.quantity, rec.unit)} de {rec.product_name}")
+        for rec in treatment_recs:
+            alerts.append(rec.message)
         bathing = "unknown"
         if chemistry_status == "ok" and temp is not None:
             bathing = "ideal" if 24 <= temp <= 30 else "ok"
@@ -1861,6 +1975,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             base_actions.extend(alerts[:2])
         if hp_on and pump_on is False:
             base_actions.append("PAC active sans pompe détectée")
+        if treatment_recs:
+            base_actions.insert(0, treatment_recs[0].message)
 
         auto_remaining = self._auto_filter_remaining_hours()
         auto_active = auto_remaining is not None and auto_remaining > 0
@@ -1899,9 +2015,11 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         actions.extend(base_actions)
         health_score = self._health_score(chemistry_status, algae_score, pool_alerts)
         vigilance = self._build_vigilance(temp, ph, orp, fc, algae_score, algae_level, weather_factor, chemistry_status)
-        has_active_alert = bool(pool_alerts or recs)
+        has_active_alert = bool(pool_alerts or recs or treatment_recs)
         if recs:
             alert_summary = "Recommandation produit"
+        elif treatment_recs:
+            alert_summary = "Recommandation de traitement"
         elif pool_alerts:
             alert_summary = "Alerte Pool Pilot"
         else:
@@ -1916,6 +2034,7 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
         detail = {
             "mode": "auto",
             "disinfection_mode": disinfection_mode,
+            "pool_type": pool_type,
             "start": start.strftime("%H:%M"),
             "end": end.strftime("%H:%M"),
             "window_label": f"{start.strftime('%H:%M')} → {end.strftime('%H:%M')}",
@@ -1987,6 +2106,8 @@ class PoolPilotCoordinator(DataUpdateCoordinator[PoolPilotData]):
             correction_summary=correction_summary,
             vigilance=vigilance,
             recommendations=recs,
+            treatment_recommendations=treatment_recs,
+            pool_type=self._pool_type(),
             products=list(self.products.values()),
             last_product_confirmed=self._last_product_confirmed,
             last_updated=dt_util.now(),

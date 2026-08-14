@@ -1,3 +1,20 @@
+## [1.3.0-beta] - 2026-08-13
+
+### Added
+- Traitement principal : Chlore, Sel / électrolyse, Brome ou Oxygène actif.
+- Mesure de désinfection contrainte par traitement : ORP uniquement pour Brome et Oxygène actif ; ORP ou chlore libre pour Chlore et Sel.
+- Moteur de recommandations compatible avec le traitement principal.
+- Recommandations spécifiques électrolyseur / Boost pour les piscines au sel.
+- Recommandations et dosages Brome / Oxygène actif basés sur les produits du Pool House.
+- Exposition du type de traitement et des recommandations de traitement dans les attributs des capteurs Pool Pilot.
+
+### Changed
+- Pool Pilot ne propose plus automatiquement de chlore lent à une piscine configurée Sel, Brome ou Oxygène actif.
+- Le risque d'algues privilégie désormais un renforcement compatible avec le traitement principal.
+
+### Notes
+- Le pilotage UV reste volontairement hors de cette beta et sera développé séparément après validation de cette nouvelle architecture.
+
 ## 1.2.4
 
 - Correction du mode ORP / RedOx : une consigne RedOx dédiée est désormais utilisée et affichée à la place de la consigne de chlore libre lorsque ce mode est sélectionné.
