@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "pool_pilot"
-VERSION: Final = "1.3.0-beta"
+VERSION: Final = "1.4.0-beta"
 
 CONF_POOL_NAME: Final = "pool_name"
 CONF_VOLUME_M3: Final = "volume_m3"
@@ -94,7 +94,6 @@ DEFAULT_WATER_TEMP_ALERT_MAX: Final = 31.0
 CONF_ALGAE_RISK_SENSITIVITY: Final = "algae_risk_sensitivity"
 DEFAULT_ALGAE_RISK_SENSITIVITY: Final = 60.0
 
-
 # Centered smart filtration
 CONF_FILTRATION_CENTER_HOUR: Final = "filtration_center_hour"
 DEFAULT_FILTRATION_CENTER_HOUR: Final = 12.0
@@ -118,21 +117,13 @@ DEFAULT_NOTIFY_STOCK_LOW_ENABLED: Final = True
 DEFAULT_NOTIFY_BATTERY_LOW_ENABLED: Final = True
 
 CONF_NOTIFY_ALERTS_ENABLED: Final = "notify_alerts_enabled"
-
 CONF_NOTIFY_RECOMMENDATIONS_ENABLED: Final = "notify_recommendations_enabled"
-
 CONF_NOTIFY_FILTRATION_ENABLED: Final = "notify_filtration_enabled"
-
 CONF_NOTIFY_STRIP_TEST_ENABLED: Final = "notify_strip_test_enabled"
-
 CONF_NOTIFY_STRIP_TEST_DAYS: Final = "notify_strip_test_days"
 
 DEFAULT_NOTIFY_ALERTS_ENABLED: Final = True
-
 DEFAULT_NOTIFY_RECOMMENDATIONS_ENABLED: Final = True
-
 DEFAULT_NOTIFY_FILTRATION_ENABLED: Final = False
-
 DEFAULT_NOTIFY_STRIP_TEST_ENABLED: Final = False
-
 DEFAULT_NOTIFY_STRIP_TEST_DAYS: Final = 7
