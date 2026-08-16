@@ -341,8 +341,10 @@ def _disinfection_product_recommendation(
 
 
 def _cya_advisory(coordinator: Any, TreatmentRecommendation: Any, cya: float | None) -> Any | None:
-    state = cya_state(cya)
     treatment = coordinator._pool_type()
+    if treatment not in (POOL_TYPE_CHLORINE, POOL_TYPE_SALT):
+        return None
+    state = cya_state(cya)
     if state == "critical":
         return TreatmentRecommendation(
             action="cya_critical",
@@ -735,7 +737,7 @@ def install_disinfection_engine_v2(CoordinatorClass: Any) -> None:
         mode = self._disinfection_mode()
         measured_fc = _measured_fc(self)
 
-        if cstate in {"high", "very_high", "critical"}:
+        if self._pool_type() in (POOL_TYPE_CHLORINE, POOL_TYPE_SALT) and cstate in {"high", "very_high", "critical"}:
             alerts.append(f"Stabilisant élevé: {cya:.0f} ppm")
             status = "warning"
 
