@@ -386,6 +386,17 @@ def _cya_advisory(coordinator: Any, TreatmentRecommendation: Any, cya: float | N
             treatment=treatment,
             icon="mdi:eye-outline",
         )
+    if state == "low":
+        return TreatmentRecommendation(
+            action="cya_low_watch",
+            title="Stabilisant faible",
+            message=(
+                f"CYA {cya:.0f} ppm. Valeur basse : en bassin extérieur, la protection du chlore "
+                "contre les UV peut être limitée. Aucun ajout automatique n'est proposé."
+            ),
+            treatment=treatment,
+            icon="mdi:weather-sunny-alert",
+        )
     return None
 
 
