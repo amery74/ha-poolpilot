@@ -10,8 +10,10 @@ from homeassistant.const import Platform
 from .const import DOMAIN
 from .coordinator import PoolPilotCoordinator
 from .recommendation_engine import install_recommendation_engine_v2
+from .disinfection_engine import install_disinfection_engine_v2
 
 install_recommendation_engine_v2(PoolPilotCoordinator)
+install_disinfection_engine_v2(PoolPilotCoordinator)
 
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
