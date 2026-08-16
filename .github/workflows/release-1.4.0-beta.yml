@@ -2,8 +2,7 @@ name: Release v1.4.0-beta
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -13,45 +12,44 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Create beta release if missing
+      - uses: actions/checkout@v4
+      - name: Create prerelease
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: v1.4.0-beta
+        shell: bash
         run: |
+          set -e
+          TAG="v1.4.0-beta"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "$TAG already exists"
             exit 0
           fi
-          gh release create "$TAG" \
-            --target main \
-            --title "Pool Pilot v1.4.0-beta" \
-            --prerelease \
-            --notes "## Pool Pilot v1.4.0-beta
+          cat > /tmp/release-notes.md <<'EOF'
+          ## Pool Pilot v1.4.0-beta
 
-Cette bêta introduit le nouveau moteur de recommandations v2.
+          Cette bêta introduit le nouveau moteur de recommandations v2.
 
-### Équilibre de l’eau
-- Nouvelles zones pH : optimal 7,2–7,6 et correction hors 7,0–7,8.
-- TAC interprété selon le traitement utilisé.
-- Dureté calcique et LSI intégrés au diagnostic global.
-- Une seule correction structurante prioritaire à la fois.
-- Aucun dosage précis si les données fabricant sont insuffisantes.
-- Temporisation après confirmation d’une correction avant nouvelle recommandation.
+          ### Équilibre de l’eau
+          - Nouvelles zones pH : optimal 7,2–7,6 et correction hors 7,0–7,8.
+          - TAC interprété selon le traitement utilisé.
+          - Dureté calcique et LSI intégrés au diagnostic global.
+          - Une seule correction structurante prioritaire à la fois.
+          - Aucun dosage précis si les données fabricant sont insuffisantes.
+          - Temporisation après confirmation d’une correction avant nouvelle recommandation.
 
-### Désinfection
-- Nouvelle matrice CYA / chlore libre / ORP.
-- L’ORP n’est jamais converti directement en quantité de produit.
-- FC correct + ORP bas déclenche un diagnostic plutôt qu’un ajout automatique de chlore.
-- CYA élevé favorise les produits non stabilisés et peut devenir prioritaire sur le traitement chloré.
-- Piscines au sel : priorité à la production de l’électrolyseur et au Boost.
-- Brome et oxygène actif utilisent les dosages fabricant sans conversion mV → dose.
-- Le risque d’algues seul ne déclenche plus automatiquement un traitement choc.
+          ### Désinfection
+          - Nouvelle matrice CYA / chlore libre / ORP.
+          - L’ORP n’est jamais converti directement en quantité de produit.
+          - FC correct + ORP bas déclenche un diagnostic plutôt qu’un ajout automatique de chlore.
+          - CYA élevé favorise les produits non stabilisés et peut devenir prioritaire sur le traitement chloré.
+          - Piscines au sel : priorité à la production de l’électrolyseur et au Boost.
+          - Brome et oxygène actif utilisent les dosages fabricant sans conversion mV → dose.
+          - Le risque d’algues seul ne déclenche plus automatiquement un traitement choc.
 
-### Validation
-- 46 tests automatisés réussis.
-- Validations HACS et Hassfest réussies sur la branche de développement.
+          ### Validation
+          - 46 tests automatisés réussis.
+          - Validations HACS et Hassfest réussies sur la branche de développement.
 
-Version bêta destinée à une validation en conditions réelles avant passage en stable."
+          Version bêta destinée à une validation en conditions réelles avant passage en stable.
+          EOF
+          gh release create "$TAG" --target main --title "Pool Pilot v1.4.0-beta" --prerelease --notes-file /tmp/release-notes.md
