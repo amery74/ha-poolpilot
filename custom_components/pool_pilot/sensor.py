@@ -126,7 +126,7 @@ class PoolPilotSensor(PoolPilotEntity, SensorEntity):
         if not self.coordinator.data:
             return None
         attrs = self.entity_description.attrs_fn(self.coordinator.data) if self.entity_description.attrs_fn else {}
+        attrs = {**self.pool_pilot_discovery_attributes, **dict(attrs or {})}
         if self.entity_description.key in ("alert_status", "action_summary"):
-            attrs = dict(attrs or {})
             attrs["notification_preferences"] = self.coordinator.notification_preferences()
-        return attrs or None
+        return attrs
