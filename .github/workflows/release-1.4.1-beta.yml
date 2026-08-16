@@ -1,0 +1,24 @@
+name: Release v1.4.1-beta
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag v1.4.1-beta
+          git push origin v1.4.1-beta
+          gh release create v1.4.1-beta --prerelease --title "V1.4.1-beta" --notes "Ajout des métadonnées stables nécessaires à l’auto-liaison avec Pool Pilot Dashboard. Les entités Pool Pilot exposent désormais leur clé fonctionnelle et l’instance à laquelle elles appartiennent, sans dépendre de leur entity_id."
