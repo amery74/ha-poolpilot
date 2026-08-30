@@ -89,6 +89,8 @@ UPDATE_STRIP_TEST_SCHEMA = vol.Schema({
     vol.Optional("cya"): vol.Any(None, vol.Coerce(float)),
     vol.Optional("free_chlorine"): vol.Any(None, vol.Coerce(float)),
     vol.Optional("total_chlorine"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("free_chlorine_slow"): vol.Any(None, vol.Coerce(float)),
+    vol.Optional("total_chlorine_slow"): vol.Any(None, vol.Coerce(float)),
     vol.Optional("temperature"): vol.Any(None, vol.Coerce(float)),
     vol.Optional("air_temperature"): vol.Any(None, vol.Coerce(float)),
 })
@@ -200,10 +202,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.services.async_register(DOMAIN, "set_product_stock", set_product_stock, schema=SET_STOCK_SCHEMA)
     hass.services.async_register(DOMAIN, "confirm_product_added", confirm_product_added, schema=CONFIRM_SCHEMA)
     hass.services.async_register(DOMAIN, "remove_product", remove_product, schema=REMOVE_SCHEMA)
-    async def set_maintenance_mode(call: ServiceCall) -> None:
-        c = _coordinator_for_call(hass, call)
-        await c.async_set_maintenance_mode(bool(call.data.get("enabled", True)))
 
+    async def set_maintenance_mode(call: ServiceCall) -> None:
+        c = await _coordinator()
+        await c.async_set_maintenance_mode(bool(call.data.get("enabled", True)))
 
     hass.services.async_register(DOMAIN, "start_auto_filtration", start_auto_filtration, schema=START_AUTO_FILTER_SCHEMA)
     hass.services.async_register(DOMAIN, "stop_auto_filtration", stop_auto_filtration)
