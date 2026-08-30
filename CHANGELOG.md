@@ -1,3 +1,66 @@
+# Changelog
+
+## [1.4.1] - 2026-08-30
+
+### Stable release
+- Promotes the v1.4 recommendation engine and dashboard entity metadata work to stable.
+- Includes all fixes requested during the HACS review before publishing the stable release.
+
+### Added
+- Recommendation engine v2 with treatment-aware chemistry logic.
+- Stable entity metadata used by Pool Pilot Dashboard for automatic entity linking without relying on `entity_id` names.
+- English runtime translations in `translations/en.json` for config flow, options and entity names.
+
+### Changed
+- pH recommendations now distinguish the optimal range (7.2–7.6) from the wider correction range (7.0–7.8).
+- TAC recommendations now depend on the selected treatment type.
+- Calcium hardness and LSI are included in water-balance recommendations.
+- Structural corrections are prioritized one at a time to avoid conflicting treatments.
+- Exact product quantities are only proposed when enough manufacturer dosing information is available.
+- A delay is applied after a confirmed correction before proposing another structural correction.
+- Chlorine recommendations now consider CYA, free chlorine and ORP together instead of converting ORP directly into product quantities.
+- When free chlorine is correct but ORP is low, Pool Pilot favors diagnostics instead of automatically recommending more chlorine.
+- High CYA favors unstabilized chlorine products.
+- Salt pools prioritize electrolyzer output and Boost actions.
+- Bromine and active oxygen recommendations use configured product dosing data.
+- Algae risk alone no longer automatically triggers a shock treatment recommendation.
+- Sensor display names now consistently use Home Assistant translation keys where available.
+
+### Fixed
+- Fixed `pool_pilot.set_maintenance_mode`, which previously referenced an undefined coordinator helper and could fail with `NameError`.
+- Aligned the `update_strip_test` service schema with the documented `free_chlorine_slow` and `total_chlorine_slow` fields.
+- Corrected the integration code owner to `@amery74`.
+- Removed the unused `pypoolchem` dependency.
+- Aligned the manifest version with the stable release version.
+- Removed unused in-tree brand assets following HACS review guidance.
+
+### Validation
+- Automated recommendation/disinfection tests pass.
+- Hassfest validation passes.
+- HACS validation is currently blocked only by the custom-integration brand check; guidance has been requested on `hacs/default#9519` because `home-assistant/brands` no longer accepts custom integration brand submissions.
+
+## [1.4.1-beta] - 2026-08-16
+
+### Added
+- Stable metadata for Pool Pilot entities so Pool Pilot Dashboard can automatically associate entities with their functional key and Pool Pilot instance independently of `entity_id` naming.
+
+## [1.4.0-beta] - 2026-08-16
+
+### Added
+- Recommendation engine v2.
+- Treatment-aware TAC targets.
+- Calcium hardness and LSI recommendations.
+- Structural correction prioritization and post-correction delay.
+- CYA/free-chlorine/ORP decision matrix.
+- Salt-pool electrolyzer and Boost prioritization.
+- Manufacturer-dose based bromine and active-oxygen recommendations.
+
+### Changed
+- ORP is no longer converted directly into a chemical product quantity.
+- Correct free chlorine with low ORP now triggers a diagnostic path instead of automatic chlorine addition.
+- High CYA favors unstabilized products.
+- Algae risk by itself no longer forces shock treatment.
+
 ## [1.3.0-beta] - 2026-08-13
 
 ### Added
@@ -28,8 +91,6 @@
 - La gestion du volet est retirée de l’intégration et reste exclusivement configurée dans la carte.
 - Aucun changement de la structure générale de l’interface.
 
-# Changelog
-
 ## 1.2.2-beta
 - Mode Maintenance avec suspension des automatismes et maintien des mesures.
 - Commande facultative du volet (ouvrir, arrêter, fermer, état et position).
@@ -38,8 +99,6 @@
 - Boost électrolyseur utilisable en mode simple ou avancé.
 - Enregistrement automatique des alertes et récapitulatifs dans le carnet.
 - Amélioration du bouton de mesure, du logo central et de la stabilité du défilement.
-
-# Changelog
 
 ## v1.2.1-beta
 
@@ -51,7 +110,6 @@
 ### Fixed
 - The Dashboard can now change centered/window placement and the authorized filtration window without reopening the integration options.
 - Existing saved values remain the source of truth and are preserved during the update.
-
 
 ## v1.2.0-beta.1
 
@@ -67,7 +125,6 @@
 - Automatic scheduling never exceeds the user-defined filtration window.
 - Existing 1.1.x installations remain compatible through defaults and option fallbacks.
 
-
 ## v1.1.1
 
 ### Fixed
@@ -76,7 +133,6 @@
 - Pool Pilot only sends commands to controllable `switch` or `input_boolean` entities.
 - Setup labels and documentation now distinguish pump command from pump state.
 - Version metadata and release documentation were updated.
-
 
 ## v1.1.0-beta.1
 
@@ -90,7 +146,6 @@
 - Documentation for the optional “Start measurement” and “Last measurement” entities.
 - More transparent filtration detail attributes.
 
-
 ## v1.0.1
 
 ### Fixed
@@ -99,7 +154,6 @@
 - Fixed the filtering mode select that could show `unknown` on some installations.
 - Removed the duplicated `auto_schedule_detail` attribute and kept the single `detail` attribute.
 - Updated version metadata for the v1.0.1 maintenance release.
-
 
 ## v1.0.0
 
