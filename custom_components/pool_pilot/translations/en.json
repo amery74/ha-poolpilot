@@ -1,0 +1,150 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pool Pilot",
+        "description": "General pool configuration.",
+        "data": {
+          "pool_name": "Name",
+          "volume_m3": "Volume",
+          "pool_type": "Treatment",
+          "surface_type": "Surface",
+          "disinfection_mode": "Disinfection measurement used",
+          "electrolyzer_type": "Electrolyzer type"
+        }
+      },
+      "entities": {
+        "title": "Home Assistant entities",
+        "description": "Select the existing sensors. Pump control is optional: use a switch/input_boolean to allow control. A separate binary_sensor can be configured to track status only.",
+        "data": {
+          "temp_entity": "Water temperature",
+          "ph_entity": "pH",
+          "orp_entity": "RedOx / ORP",
+          "fc_entity": "Free chlorine",
+          "ta_entity": "Alkalinity",
+          "ch_entity": "Calcium hardness",
+          "cya_entity": "CYA stabilizer",
+          "salt_entity": "Salt",
+          "pump_switch": "Pump control (optional)",
+          "heatpump_entity": "Heat pump",
+          "weather_entity": "Weather",
+          "forecast_temp_entity": "Forecast temperature",
+          "pump_state": "Pump state (optional)",
+          "electrolyzer_switch": "Electrolyzer on/off control (optional)",
+          "electrolyzer_output_entity": "Electrolyzer output percentage (optional)",
+          "electrolyzer_boost_entity": "Electrolyzer Boost control (optional)",
+          "electrolyzer_status_entity": "Electrolyzer status or diagnostic (optional)"
+        }
+      },
+      "treatment": {
+        "title": "Treatment and disinfection measurement",
+        "description": "The available measurement depends on the main treatment. Bromine and active oxygen use ORP / RedOx only.",
+        "data": {
+          "disinfection_mode": "Disinfection measurement",
+          "electrolyzer_type": "Electrolyzer management",
+          "target_orp": "Treatment ORP / RedOx target (mV)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Pool Pilot settings",
+        "data": {
+          "target_ph": "Target pH",
+          "target_fc": "Target free chlorine",
+          "target_orp": "Target RedOx",
+          "filtering_mode": "Filtration mode",
+          "auto_start_time": "Earliest start time (HH:MM)",
+          "auto_end_time": "Latest end time (HH:MM)",
+          "filter_coef": "Filtration coefficient",
+          "min_filter_hours": "Minimum filtration",
+          "max_filter_hours": "Maximum filtration",
+          "heat_pump_priority": "Heat pump priority",
+          "free_chlorine_mode": "Free chlorine source (compatibility)",
+          "disinfection_mode": "Disinfection measurement used",
+          "pump_switch": "Pump control (switch, optional)",
+          "pump_state": "Pump state (binary_sensor, optional)",
+          "electrolyzer_type": "Electrolyzer type",
+          "electrolyzer_switch": "Electrolyzer control",
+          "electrolyzer_output_entity": "Electrolyzer output (%)",
+          "electrolyzer_boost_entity": "Boost control",
+          "electrolyzer_status_entity": "Electrolyzer status",
+          "filtration_placement_mode": "Automatic filtration placement",
+          "filtration_center_hour": "Center hour"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "water_temperature": {"name": "Water temperature"},
+      "recommended_filter_hours": {"name": "Recommended filtration duration"},
+      "weather_factor": {"name": "Weather factor"},
+      "chemistry_status": {"name": "Chemistry status"},
+      "bathing_status": {"name": "Swimming status"},
+      "action_summary": {"name": "Recommended actions"},
+      "ph": {"name": "pH"},
+      "orp": {"name": "RedOx"},
+      "free_chlorine": {"name": "Free chlorine"},
+      "product_recommendation": {"name": "Product recommendation"},
+      "pool_house": {"name": "Pool House"},
+      "alert_status": {"name": "Alert status"},
+      "auto_filter_remaining": {"name": "Auto filtration remaining"},
+      "auto_schedule_status": {"name": "Automatic filtration status"},
+      "smart_filtration": {"name": "Smart filtration status"},
+      "strip_test": {"name": "Strip test"},
+      "maintenance_journal": {"name": "Maintenance journal"},
+      "pool_alerts": {"name": "Pool Pilot alerts"},
+      "algae_risk": {"name": "Algae risk"},
+      "health_score": {"name": "Pool health score"},
+      "auto_filter_remaining_hours": {"name": "Filtration remaining"},
+      "auto_schedule_done_hours": {"name": "Filtration completed today"},
+      "vigilance": {"name": "Pool Pilot vigilance"},
+      "raw_measurements": {"name": "Measurement history"},
+      "estimated_free_chlorine": {"name": "Estimated free chlorine"},
+      "active_chlorine": {"name": "Active chlorine HOCl"},
+      "chlorine_mode_used": {"name": "Chlorine mode used"},
+      "lsi": {"name": "LSI"},
+      "phs": {"name": "pHs"},
+      "minf": {"name": "MINF / TDS"},
+      "taylor_status": {"name": "Taylor balance"},
+      "electrolyzer": {"name": "Electrolyzer"},
+      "filtration_progress": {"name": "Filtration progress"}
+    },
+    "number": {
+      "target_ph": {"name": "Target pH"},
+      "target_fc": {"name": "Target free chlorine"},
+      "target_orp": {"name": "Target RedOx"},
+      "filter_coef": {"name": "Filtration coefficient"},
+      "min_filter_hours": {"name": "Minimum filtration"},
+      "max_filter_hours": {"name": "Maximum filtration"},
+      "water_temp_alert_min": {"name": "Low water temperature threshold"},
+      "water_temp_alert_max": {"name": "High water temperature threshold"},
+      "algae_risk_sensitivity": {"name": "Algae risk threshold"},
+      "filtration_center_hour": {"name": "Filtration center hour"}
+    },
+    "button": {
+      "confirm_current_action": {"name": "Confirm recommended action"},
+      "start_auto_filter": {"name": "Start recommended filtration"}
+    },
+    "select": {
+      "filtering_mode": {"name": "Filtration mode"},
+      "filtration_placement_mode": {
+        "name": "Automatic filtration placement",
+        "state": {
+          "centered": "Center around the center hour",
+          "window": "Stay within a time window"
+        }
+      }
+    },
+    "switch": {
+      "maintenance_mode": {"name": "Maintenance mode"}
+    },
+    "time": {
+      "auto_start_time": {"name": "Earliest start time"},
+      "auto_end_time": {"name": "Latest end time"}
+    }
+  }
+}
